@@ -1,0 +1,12 @@
+einops
+matplotlib
+numpy
+opencv_python
+pandas
+Pillow
+seaborn
+setuptools
+scikit-image
+tensorboard
+tqdm
+thop
