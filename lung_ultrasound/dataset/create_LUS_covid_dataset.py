@@ -133,6 +133,11 @@ def main(args):
     video_paths = [os.path.join(args.videos_folder, probe, filename) for probe in type_of_probe for filename in os.listdir(os.path.join(args.videos_folder, probe))]
 
     for video_path in tqdm.tqdm(video_paths):
+        # check if the file is a video:
+        if not any(video_path.endswith(ext) for ext in ['.mp4', '.MP4', '.avi', '.mov', '.gif', '.mpeg']):
+            print(f"File {video_path} is not a valid video file. Skipping.")
+            continue
+        
         filename = os.path.basename(video_path)
         filename_without_extension = os.path.splitext(filename)[0]
         extention = os.path.splitext(filename)[1]
@@ -155,7 +160,7 @@ def main(args):
 
             # save label as json file
             label_info = line.to_dict(orient='records')[0]
-            label_file_path = os.path.join(video_labels_folder, "label_info.txt")
+            label_file_path = os.path.join(video_labels_folder, "label_info.json")
             with open(label_file_path, 'w') as f:
                 json.dump(label_info, f, indent=4)
 
