@@ -57,6 +57,11 @@ class DatasetLUSCovid(torch.utils.data.Dataset):
         with open(os.path.join(self.dataset_path, splitting_json), 'r') as file:
             self.splitting_dict = json.load(file)
 
+        # for key in self.splitting_dict.keys():
+        #     print(f"{key} :")
+        #     for subkey in self.splitting_dict[key].keys():
+        #         print(f"    {subkey}: {len(self.splitting_dict[key][subkey])} subjects")
+            
         self.subjects_files = self.splitting_dict[self.fold_cv][self.split]
 
         ## image and label list
@@ -85,13 +90,15 @@ class DatasetLUSCovid(torch.utils.data.Dataset):
         im = Image.open(self.image_list[index])
         im = im.convert('RGB')
 
+        subject = self.image_list[index].split('/')[-3]
+
         # read json as a dictionary
         with open(self.label_list[index], 'r') as f:
             label = json.load(f)
         bio_markers = [int(label[marker]) for marker in ["Effusion", "Consolidations", "B-lines", "A-lines", "Pleural line irregularities", "Air bronchogram"]]
         bio_markers = np.array(bio_markers)
 
-        subject = self.image_list[index].split('/')[-3]
+        
         return im, bio_markers, subject
         
     
@@ -118,7 +125,7 @@ class DatasetLUSCovid(torch.utils.data.Dataset):
         
         ## random rotation to image and label
         if torch.rand(1) > 0.5:
-            angle = np.random.randint(-30, 30)
+            angle = np.random.randint(-15, 15)
             image = transforms.functional.rotate(image, angle)
 
         ## random translation to image and label in each direction
@@ -135,8 +142,8 @@ class DatasetLUSCovid(torch.utils.data.Dataset):
             image = transforms.functional.hflip(image)
 
         ## random vertical flip
-        if torch.rand(1) > 0.5:
-            image = transforms.functional.vflip(image)
+        # if torch.rand(1) > 0.5:
+        #     image = transforms.functional.vflip(image)
             
         ## random brightness and contrast
         if torch.rand(1) > 0.5:
@@ -169,14 +176,48 @@ class DatasetLUSCovid(torch.utils.data.Dataset):
         return image, label
 
 if __name__ == "__main__":
-    dataset = DatasetLUSCovid(dataset_path='/media/angelo/PortableSSD/Assistant_Researcher/Predict/LUS_data_covid19/DATA_covid',
-                             data_augmentation=False,
-                             size=(256,256),
-                             im_channels=3,
-                             splitting_json='splitting.json',
-                             fold_cv='fold_2',
-                             split='train')
-    img, label, subject = dataset[110]
-    print(img.shape, label, subject)
+    ## PLAYGRAOUND and DATASET DISTRIBUTION INFO 
+    dataset_path='/media/angelo/PortableSSD/Assistant_Researcher/Predict/LUS_data_covid19/DATA_covid'
+    size=(256,256)
+    im_channels=3
+    fold_cv='fold_1'
+    split='train'
 
+    dataset_list = []
+    for split in ['train', 'val', 'test']:
+        dataset_split = DatasetLUSCovid(dataset_path=dataset_path,
+                                         data_augmentation=False,
+                                         size=size,
+                                         im_channels=im_channels,
+                                         splitting_json='splitting.json',
+                                         fold_cv=fold_cv,
+                                         split=split
+                                        )
+        print(len(dataset_split))
+        dataset_list.append((dataset_split))
 
+    # concatenate all dataset splits
+    full_dataset = torch.utils.data.ConcatDataset(dataset_list)
+
+    labels_count = np.zeros((6,))
+    for image, label, subject in tqdm(full_dataset):
+        labels_count += label.numpy()
+    
+    print("Dataset distribution:")
+    biomarkers = ["Effusion", "Consolidations", "B-lines", "A-lines", "Pleural line irregularities", "Air bronchogram"]
+    for i, biomarker in enumerate(biomarkers):
+        print(f"{biomarker}: {labels_count[i]} samples")
+
+    # plot pie chart (grafico a torta)
+    plt.figure(figsize=(8, 8))
+    plt.pie(
+        labels_count,
+        labels=biomarkers,
+        autopct='%1.1f%%',
+        startangle=90
+    )
+    plt.title("Dataset distribution of LUS COVID-19 Dataset")
+    plt.axis('equal')  # rende la torta circolare
+    plt.show()
+
+    
