@@ -16,6 +16,196 @@ import numpy as np
 import math
 import matplotlib.pyplot as plt
 
+class IntraoperativeUS():
+    """
+    DatasetLUSCovid class for developing DL model for LUS analysis
+
+    ---------------------------
+    The tree data is the follow
+    ../../DATA_covid
+    ├── video_file_name_1
+    │   ├── images
+    │   |   ├── frame_0000.png
+    │   │   ├── frame_0003.png
+        │   ├── labels
+    │   |   ├── label_info.txt 
+    ├── Case2-US-before
+    ├── Case3-US-before
+    └── Case4-US-before
+    """
+    def __init__(self, dataset_path,
+                      data_augmentation,
+                      size,
+                      im_channels) :
+        self.dataset_path = dataset_path
+
+        # condition and data augmentation parameters
+        self.data_augmentation = data_augmentation
+        
+        #img parameters
+        self.size = size
+        self.im_channels = im_channels
+
+        #splitting parameters   
+        self.splitting_seed = splitting_seed
+        self.train_percentage = train_percentage
+        self.val_percentage = val_percentage
+        self.test_percentage = test_percentage
+
+        ## get the splitting of the dataset
+        self.split = split
+        if splitting_json is None:
+            self.splitting_dict = self.get_data_splittings()
+        else:
+            with open(os.path.join(os.path.dirname(self.dataset_path), splitting_json), 'r') as file:
+                self.splitting_dict = json.load(file)
+        self.subjects_files = self.splitting_dict[self.split]
+
+        ## image and label list
+        self.image_list, self.label_list = self.get_image_label_dict()['image'], self.get_image_label_dict()['tumor']
+
+
+    def __len__(self):
+        return len(self.image_list)
+
+
+    def __getitem__(self, index):
+        im, label, subject = self.get_image_label(index)
+
+        cond_inputs = {}    ## add to this dict the condition inputs
+        if len(self.condition_types) > 0:  # check if there is at least one condition in ['class', 'text', 'image']
+
+            ################ IMAGE CONDITION ###################################
+            if 'image' in self.condition_types or 'controlnet' in self.condition_types:
+                if self.data_augmentation:
+                    im_tensor, label_tensor = self.augmentation(im, label)
+                else:
+                    im_tensor, label_tensor = self.trasform(im, label)
+                cond_inputs['image'] = label_tensor
+            #####################################################################
+            return im_tensor, cond_inputs   
+
+        else: # no condition
+            if self.data_augmentation:
+                im_tensor = self.augmentation(im)
+            else:
+                resize = transforms.Resize(size=self.size)
+                image = resize(im)
+                image = transforms.functional.to_tensor(image)
+                im_tensor = (2 * image) - 1
+                
+            return im_tensor
+
+        # return im_tensor, label_tensor
+
+
+    def get_image_label(self, index):
+        """
+        Return the image and label given the index
+        """
+        pass
+
+    def get_data_splittings(self):
+        """
+        Given the path of the dataset return the list of patient for train, valindation and test
+        """
+        np.random.seed(self.splitting_seed)
+        
+        subjects = os.listdir(self.dataset_path)
+        np.random.shuffle(subjects)
+
+        n_test = math.floor(len(subjects) * self.test_percentage) 
+        n_val = math.floor(len(subjects) * self.val_percentage)
+        n_train = math.floor(len(subjects) * self.train_percentage) + 1  ## floor(18.4) = 18 so i add 1
+
+        train = subjects[:n_train]
+        val = subjects[n_train:n_train+n_val]
+        test = subjects[n_train+n_val:]
+        splitting_dict = {'train': train, 'val': val, 'test': test}
+
+        return splitting_dict
+
+    def get_image_label_dict(self):
+        """
+        From the list of patient in self.subjects_files return the list of image and tumor
+        """
+        image_label_dict = {'image': [], 'tumor': []}
+        for subject in self.subjects_files:
+            subject_path = os.path.join(self.dataset_path, subject)
+            for item in os.listdir(os.path.join(self.dataset_path, subject, 'volume')):
+                image_label_dict['image'].append(os.path.join(subject_path, 'volume', item))
+                image_label_dict['tumor'].append(os.path.join(subject_path, 'tumor', item))
+                
+        return image_label_dict
+
+    def augmentation(self, image, label=None):
+        """
+        Set of trasformation to apply to image.
+        """
+        ## Resize
+        resize = transforms.Resize(size=self.size)
+        image = resize(image)
+        if label is not None: label = resize(label)
+        
+        ## random rotation to image and label
+        if torch.rand(1) > 0.5:
+            angle = np.random.randint(-30, 30)
+            image = transforms.functional.rotate(image, angle)
+            if label is not None: label = transforms.functional.rotate(label, angle)
+
+        ## random translation to image and label in each direction
+        if torch.rand(1) > 0.5:
+            translate = transforms.RandomAffine.get_params(degrees=(0.,0.), 
+                                                        translate=(0.10, 0.10),
+                                                        scale_ranges=(1.0,1.0),
+                                                        shears=(0.,0.), 
+                                                        img_size=self.size)
+            image = transforms.functional.affine(image, *translate)
+            if label is not None: label = transforms.functional.affine(label, *translate)
+
+        ## random horizontal flip
+        if torch.rand(1) > 0.5:
+            image = transforms.functional.hflip(image)
+            if label is not None: label = transforms.functional.hflip(label)
+
+        ## random vertical flip
+        if torch.rand(1) > 0.5:
+            image = transforms.functional.vflip(image)
+            if label is not None: label = transforms.functional.vflip(label)
+            
+        ## random brightness and contrast
+        if torch.rand(1) > 0.5:
+            image = transforms.ColorJitter(brightness=0.5, contrast=0.5)(image)
+
+        
+        ## random gamma correction
+        if torch.rand(1) > 0.5:
+            gamma = np.random.uniform(0.5, 1.5)
+            image = transforms.functional.adjust_gamma(image, gamma)
+      
+        image = transforms.functional.to_tensor(image)
+        if label is not None: label = transforms.functional.to_tensor(label)
+        image = (2 * image) - 1  
+
+        if label is not None:
+            return image, label
+        else:
+            return image
+
+    def trasform(self, image, label):
+        """
+        Simple trasformaztion of the label and image. Resize and normalize the image and resize the label
+        """
+        ## Resize
+        resize = transforms.Resize(size=self.size)
+        image = resize(image)
+        label = resize(label)
+
+        ## convert to tensor and normalize
+        label = transforms.functional.to_tensor(label)
+        image = transforms.functional.to_tensor(image)
+        image = (2 * image) - 1    
+        return image, label
 
 if __name__ == "__main__":
     a=0
