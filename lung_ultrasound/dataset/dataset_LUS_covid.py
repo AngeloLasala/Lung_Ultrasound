@@ -6,6 +6,9 @@ import os
 import json
 import torchvision
 from PIL import Image
+import logging
+logging.getLogger("PIL.PngImagePlugin").setLevel(logging.WARNING)
+
 from tqdm import tqdm
 import json
 import torch
