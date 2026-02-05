@@ -26,3 +26,19 @@ install the requirements
 ```bash
 pip install -e .
 ```
+
+## Training
+
+for the trianing, use `train.py` in folder `tools`  
+
+```bash
+python train.py --keep_log
+```
+
+the flag `keep_log` enable to save checkpoint anf tenorboard loggings. For visulizing tensorbors use the following command line
+
+```bash
+tensorboard --logdir name_of_log_dir
+```
+
+See class `cfg_train` for mode details about the training configuration setting
