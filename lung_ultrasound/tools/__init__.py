@@ -12,19 +12,19 @@ class cfg_train:
 
     ## model configuration
     model_name = "ResNetLUSCAM"
-    backbone = "resnet50"
+    backbone = "resnet18"
     pretrained = True
     freeze_backbone = False
     pooling = "avg"
-    num_classes = 6
+    num_classes = 5
 
     ## train configuration
     device = 'cuda'
     epochs = 100
-    batch_size = 16
+    batch_size = 8
     learning_rate = 1e-4
-    size = (256,256)
+    size = (224,224)
     im_channels = 3
     fold_cv = 'fold_1'        # cross-validation fold 
-    cosine_annealing = True   # use cosine annealing learning rate scheduler
+    cosine_annealing = False   # use cosine annealing learning rate scheduler
     eval_freq = 1             # evaluate every n epochs

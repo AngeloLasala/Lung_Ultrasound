@@ -44,7 +44,8 @@ class DatasetLUSCovid(torch.utils.data.Dataset):
                       im_channels,
                       splitting_json,
                       fold_cv,
-                      split) :
+                      split, 
+                      trasformations) :
         self.dataset_path = dataset_path
 
         # condition and data augmentation parameters
@@ -70,6 +71,8 @@ class DatasetLUSCovid(torch.utils.data.Dataset):
         ## image and label list
         self.image_list, self.label_list = self.get_image_label_dict()['images'], self.get_image_label_dict()['labels']
 
+        self.trasformations = trasformations
+
     def __len__(self):
         return len(self.image_list)
 
@@ -79,12 +82,16 @@ class DatasetLUSCovid(torch.utils.data.Dataset):
         ################ IMAGE CONDITION ###################################
         if self.data_augmentation:
             im_tensor, labels_tensor = self.augmentation(im, label)
+            im_tensor = self.trasformations(im_tensor)
+            labels_tensor = torch.tensor(label, dtype=torch.float32)
         else:
-            im_tensor, labels_tensor = self.trasform(im, label)
-
-        return im_tensor, labels_tensor, subject
+            im_tensor = self.trasformations(im)
+            labels_tensor = torch.tensor(label, dtype=torch.float32)
         
+        
+        return im_tensor, labels_tensor, subject
 
+        
     def get_image_label(self, index):
         """
         Return the image and label given the index
@@ -98,7 +105,7 @@ class DatasetLUSCovid(torch.utils.data.Dataset):
         # read json as a dictionary
         with open(self.label_list[index], 'r') as f:
             label = json.load(f)
-        bio_markers = [int(label[marker]) for marker in ["Effusion", "Consolidations", "B-lines", "A-lines", "Pleural line irregularities", "Air bronchogram"]]
+        bio_markers = [int(label[marker]) for marker in ["Effusion", "Consolidations", "B-lines", "A-lines", "Pleural line irregularities"]] #, "Air bronchogram"]]
         bio_markers = np.array(bio_markers)
 
         
@@ -122,70 +129,60 @@ class DatasetLUSCovid(torch.utils.data.Dataset):
         """
         Set of trasformation to apply to image.
         """
-        ## Resize
-        resize = transforms.Resize(size=self.size)
-        image = resize(image)
-        
+    
         ## random rotation to image and label
         if torch.rand(1) > 0.5:
-            angle = np.random.randint(-15, 15)
+            angle = np.random.randint(-23, 23)
             image = transforms.functional.rotate(image, angle)
-
-        ## random translation to image and label in each direction
-        if torch.rand(1) > 0.5:
-            translate = transforms.RandomAffine.get_params(degrees=(0.,0.), 
-                                                        translate=(0.10, 0.10),
-                                                        scale_ranges=(1.0,1.0),
-                                                        shears=(0.,0.), 
-                                                        img_size=self.size)
-            image = transforms.functional.affine(image, *translate)
 
         ## random horizontal flip
         if torch.rand(1) > 0.5:
             image = transforms.functional.hflip(image)
 
-        ## random vertical flip
-        # if torch.rand(1) > 0.5:
-        #     image = transforms.functional.vflip(image)
-            
-        ## random brightness and contrast
+        # random cropping
         if torch.rand(1) > 0.5:
-            image = transforms.ColorJitter(brightness=0.5, contrast=0.5)(image)
+            h, w = image.size
+            scale = np.random.uniform(0.5, 0.9)
+            crop_h = int(h * scale)
+            crop_w = int(w * scale)
 
-        
-        ## random gamma correction
+            top = np.random.randint(0, h - crop_h + 1)
+            left = np.random.randint(0, w - crop_w + 1)
+
+            image = transforms.functional.crop(
+                image,
+                top=top,
+                left=left,
+                height=crop_h,
+                width=crop_w)
+
+        # ## random brightness [0, 0.10]
         if torch.rand(1) > 0.5:
-            gamma = np.random.uniform(0.5, 1.5)
-            image = transforms.functional.adjust_gamma(image, gamma)
-      
-        label = torch.tensor(label, dtype=torch.float32)
-        image = transforms.functional.to_tensor(image)
-        image = (2 * image) - 1  
+            brightness_factor = np.random.uniform(0.9, 1.1)
+            image = transforms.functional.adjust_brightness(image, brightness_factor)
 
         return image, label
 
-    def trasform(self, image, label):
-        """
-        Simple trasformaztion of the label and image. Resize and normalize the image and resize the label
-        """
-        ## Resize
-        resize = transforms.Resize(size=self.size)
-        image = resize(image)
-
-        ## convert to tensor and normalize
-        label = torch.tensor(label, dtype=torch.float32)
-        image = transforms.functional.to_tensor(image)
-        image = (2 * image) - 1    
-        return image, label
 
 if __name__ == "__main__":
+
     ## PLAYGRAOUND and DATASET DISTRIBUTION INFO 
     dataset_path='/media/angelo/PortableSSD/Assistant_Researcher/Predict/LUS_data_covid19/DATA_covid'
-    size=(256,256)
+    size=(224,224)
     im_channels=3
     fold_cv='fold_1'
     split='train'
 
+    transformation = transforms.Compose([transforms.Resize(size),
+                                            transforms.ToTensor(),
+                                            transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                                                std=[0.229, 0.224, 0.225])
+                                        ])
+
+    inv_normalize = transforms.Normalize(mean=[-0.485 / 0.229, -0.456 / 0.224, -0.406 / 0.225],
+                                        std=[1 / 0.229, 1 / 0.224, 1 / 0.225])
+        
+                                            
     dataset_list = []
     for split in ['train', 'val', 'test']:
         dataset_split = DatasetLUSCovid(dataset_path=dataset_path,
@@ -194,7 +191,8 @@ if __name__ == "__main__":
                                          im_channels=im_channels,
                                          splitting_json='splitting.json',
                                          fold_cv=fold_cv,
-                                         split=split
+                                         split=split,
+                                         trasformations=transformation
                                         )
         print(len(dataset_split))
         dataset_list.append((dataset_split))
@@ -202,12 +200,23 @@ if __name__ == "__main__":
     # concatenate all dataset splits
     full_dataset = torch.utils.data.ConcatDataset(dataset_list)
 
-    labels_count = np.zeros((6,))
+
+    ## plot a image from the dataset
+    image, label, subject = full_dataset[0]
+    image = inv_normalize(image)
+    print(f"Image shape: {image.shape}")
+    print(image.min(), image.max())
+
+    plt.figure()
+    plt.imshow(image.permute(1, 2, 0).numpy())
+    # plt.show()
+
+    labels_count = np.zeros((5,))
     for image, label, subject in tqdm(full_dataset):
         labels_count += label.numpy()
     
     print("Dataset distribution:")
-    biomarkers = ["Effusion", "Consolidations", "B-lines", "A-lines", "Pleural line irregularities", "Air bronchogram"]
+    biomarkers = ["Effusion", "Consolidations", "B-lines", "A-lines", "Pleural line irregularities"] #, "Air bronchogram"]
     for i, biomarker in enumerate(biomarkers):
         print(f"{biomarker}: {labels_count[i]} samples")
 

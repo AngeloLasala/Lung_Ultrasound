@@ -18,10 +18,17 @@ import random
 import logging
 import json
 import numpy as np
+import matplotlib
+matplotlib.use('Agg') 
+
 import matplotlib.pyplot as plt
+logging.getLogger("matplotlib").setLevel(logging.ERROR)
+
 
 from lung_ultrasound.dataset.dataset_LUS_covid import DatasetLUSCovid
 from lung_ultrasound.models.resnet import ResNetLUSCAM
+from lung_ultrasound.models.vgg16 import VGG16LUSCAM
+from lung_ultrasound.losses.bce import WeightedBCELoss, compute_pos_weights
 from lung_ultrasound.tools import cfg_train
 
 def main(args):
@@ -39,10 +46,20 @@ def main(args):
     learning_rate = cfg_train.learning_rate
     device = torch.device(cfg_train.device)
 
+    # main file for results
     if args.keep_log:
         logtimestr = time.strftime('%d-%m-%Y_%H-%M')  # initialize the tensorboard for record the training process
         logging.info(f' Day: {logtimestr}\n')
-        boardpath = os.path.join(cfg_train.main_path, cfg_train.results, cfg_train.dataset) #, args.modelname, opt.tensorboard_folder, f'{args.dataset_loader}_{logtimestr}')
+
+        results_path = os.path.join(cfg_train.main_path, cfg_train.results, cfg_train.dataset, cfg_train.backbone)
+        if not os.path.isdir(results_path):
+            os.makedirs(results_path)
+
+        checkpoint_path = os.path.join(results_path, cfg_train.fold_cv, logtimestr, 'checkpoints')
+        if not os.path.isdir(checkpoint_path):
+            os.makedirs(checkpoint_path)
+
+        boardpath = os.path.join(results_path, cfg_train.fold_cv, logtimestr, 'tensorboard') #, args.modelname, opt.tensorboard_folder, f'{args.dataset_loader}_{logtimestr}')
         if not os.path.isdir(boardpath):
             os.makedirs(boardpath)
         TensorWriter = SummaryWriter(boardpath)
@@ -65,6 +82,13 @@ def main(args):
                          freeze_backbone=cfg_train.freeze_backbone,
                          pooling=cfg_train.pooling)
 
+    # model = VGG16LUSCAM(num_classes=cfg_train.num_classes,
+    #                      backbone=cfg_train.backbone,
+    #                      pretrained=cfg_train.pretrained,
+    #                      freeze_backbone=cfg_train.freeze_backbone,
+    #                      pooling=cfg_train.pooling)
+
+
     ## to do: add part to compute model complexity and numeber of parameters
     logging.info(f'  num_classes: {cfg_train.num_classes}')
     logging.info(f'  backbone: {cfg_train.backbone}')
@@ -75,13 +99,23 @@ def main(args):
 
     ## load dataset ###########################################################
     logging.info(' Creating train and val dataloader...')
+    transformation = transforms.Compose([transforms.ToTensor(),
+                                         transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                                                std=[0.229, 0.224, 0.225]),
+                                         transforms.Resize(cfg_train.size),  
+                                        ])
+
+    inv_normalize = transforms.Normalize(mean=[-0.485 / 0.229, -0.456 / 0.224, -0.406 / 0.225],
+                                        std=[1 / 0.229, 1 / 0.224, 1 / 0.225])
+
     train_dataset = DatasetLUSCovid(dataset_path = os.path.join(cfg_train.main_path, cfg_train.dataset),
                                     data_augmentation = True,
                                     size = cfg_train.size,
                                     im_channels = cfg_train.im_channels,
                                     splitting_json='splitting.json',
                                     fold_cv = cfg_train.fold_cv,
-                                    split = 'train')
+                                    split = 'train',
+                                    trasformations=transformation)
 
     val_dataset = DatasetLUSCovid(dataset_path = os.path.join(cfg_train.main_path, cfg_train.dataset),
                                     data_augmentation = False,
@@ -89,7 +123,8 @@ def main(args):
                                     im_channels = cfg_train.im_channels,
                                     splitting_json='splitting.json',
                                     fold_cv = cfg_train.fold_cv,
-                                    split = 'val')
+                                    split = 'val', 
+                                    trasformations=transformation)
 
     trainloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=8, pin_memory=True)
     valloader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=8, pin_memory=True)
@@ -106,19 +141,24 @@ def main(args):
     logging.info(f'  size: {cfg_train.size}')
     logging.info(f'  device: {device}')
 
+    ## lr scheduler
     if cfg_train.cosine_annealing:
-        logging.info(f'  using cosine annealing lr from {learning_rate*10} to {learning_rate/10}')
-        base_lr = learning_rate * 10
+        logging.info(f'  using cosine annealing lr from {learning_rate} to {learning_rate/10}')
+        base_lr = learning_rate
         optimizer = torch.optim.AdamW(model.parameters(), lr=base_lr, weight_decay=0.1)
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs, eta_min=learning_rate/10)
     else:
-        optimizer = optim.Adam(model.parameters(), lr=learning_rate, betas=(0.9, 0.999), eps=1e-08, weight_decay=0, amsgrad=False)
+        optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, betas=(0.9, 0.999), eps=1e-08, weight_decay=0, amsgrad=False)
     logging.info('-'*25)
 
     #initial best loss
     best_loss = float('inf')
     loss_log = np.zeros(epochs+1)
-    
+
+    # criterion
+    pos_weight = compute_pos_weights(torch.stack([label for _, label, _ in train_dataset], dim=0))
+    criterion = WeightedBCELoss(pos_weight=pos_weight)
+
     model.to(device)
     for epoch in range(epochs):
         progress_bar = tqdm(total=len(trainloader), disable=False)
@@ -128,13 +168,13 @@ def main(args):
         train_losses = 0
         for batch_idx, (images, labels, subj) in enumerate(trainloader):
             images, labels = images.to(device), labels.to(device).float() 
-            optimizer.zero_grad()
-
+            
             # forward
             outputs = model(images)
-            loss = torch.nn.BCEWithLogitsLoss()(outputs, labels)
+            loss = criterion(outputs, labels)
 
             # backward
+            optimizer.zero_grad()
             loss.backward()
             optimizer.step()
             train_losses += loss.item()
@@ -161,7 +201,7 @@ def main(args):
 
                 with torch.no_grad():
                     outputs = model(images)
-                    loss = torch.nn.BCEWithLogitsLoss()(outputs, labels)
+                    loss = criterion(outputs, labels)
                     val_losses += loss.item()
             avg_val_loss = val_losses / len(valloader)
 
@@ -169,26 +209,49 @@ def main(args):
                 TensorWriter.add_scalar('Val/Loss', avg_val_loss, epoch)
 
                 ## to do: aggiugnere parte di visualizzaione image e cam
+                idx_v = np.random.randint(0, len(val_dataset))
+                image_v, label_v, subj_v = val_dataset[idx_v]
+                image_v_input = image_v.unsqueeze(0).to(device)
+                label_v_input = label_v.unsqueeze(0).to(device).float()
+
+                model.eval()
+                with torch.no_grad():
+                    output_v = model(image_v_input)
+                    outpunt_v_sigmoid = torch.sigmoid(output_v).cpu().numpy()[0]
+                #     cam_v = model.get_cam_weights()
+                #     print(cam_v.shape, output_v)
+                #     exit()
+                
+                ## create figure
+                fig, axes = plt.subplots(1, 2, figsize=(10, 5))
+                image_v = inv_normalize(image_v)  # denormalize for visualization
+                image_v = image_v.permute(1, 2, 0).cpu().numpy()  # convert to HWC format for visualization
+                axes[0].imshow(image_v, cmap='gray')
+                axes[0].set_title(f"Label {label_v_input}")
+
+                axes[1].imshow(image_v, cmap='gray')
+                # axes[1].set_title(f'Output {outpunt_v_sigmoid}')
+
+                TensorWriter.add_figure('Val/Image_and_Output', fig, epoch)
+                plt.close(fig)
+
             
             if avg_val_loss < best_loss:
                 best_loss = avg_val_loss
                 # save model
-                save_path = os.path.join(cfg_train.main_path, cfg_train.results, cfg_train.dataset, f'best_model.pth')
+                save_path = os.path.join(checkpoint_path, f'best_model.pth')
                 torch.save(model.state_dict(), save_path)
-                logging.info(f'  --> saved best model with val loss: {best_loss:.4f} at epoch {epoch+1}')
+                # logging.info(f'  --> saved best model with val loss: {best_loss:.4f} at epoch {epoch+1}')
 
             ## save last model
             if epoch == epochs - 1:
-                save_path = os.path.join(cfg_train.main_path, cfg_train.results, cfg_train.dataset, f'last_model.pth')
+                save_path = os.path.join(checkpoint_path, f'last_model.pth')
                 torch.save(model.state_dict(), save_path)
                 logging.info(f'  --> saved last model at epoch {epoch+1}')
 
-
-        ## save model 
-
-
-    
-
+    cfg_dict = {k: v for k, v in cfg_train.__dict__.items() if not k.startswith("__")}
+    with open(os.path.join(results_path, cfg_train.fold_cv, logtimestr, 'train_config.json'), 'w') as f:
+        json.dump(cfg_dict, f, indent=4)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Train LUS Multi-Instance Classifier')
