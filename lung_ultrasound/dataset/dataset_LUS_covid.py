@@ -82,10 +82,18 @@ class DatasetLUSCovid(torch.utils.data.Dataset):
         ################ IMAGE CONDITION ###################################
         if self.data_augmentation:
             im_tensor, labels_tensor = self.augmentation(im, label)
-            im_tensor = self.trasformations(im_tensor)
+            if self.trasformations is not None:
+                im_tensor = self.trasformations(im_tensor)
+            else:
+                im_tensor = transforms.ToTensor()(im_tensor)
+
             labels_tensor = torch.tensor(label, dtype=torch.float32)
         else:
-            im_tensor = self.trasformations(im)
+            if self.trasformations is not None:
+                im_tensor = self.trasformations(im)
+            else:
+                im_tensor = transforms.ToTensor()(im)
+
             labels_tensor = torch.tensor(label, dtype=torch.float32)
         
         
@@ -98,7 +106,11 @@ class DatasetLUSCovid(torch.utils.data.Dataset):
         """
         # read image and label with PIL
         im = Image.open(self.image_list[index])
-        im = im.convert('RGB')
+        # only one grey channel
+        if self.im_channels == 1:
+            im = im.convert('L')
+        else:
+            im = im.convert('RGB')
 
         subject = self.image_list[index].split('/')[-3]
 
@@ -167,11 +179,11 @@ class DatasetLUSCovid(torch.utils.data.Dataset):
 if __name__ == "__main__":
 
     ## PLAYGRAOUND and DATASET DISTRIBUTION INFO 
-    dataset_path='/media/angelo/PortableSSD/Assistant_Researcher/Predict/LUS_data_covid19/DATA_covid'
-    size=(224,224)
-    im_channels=3
-    fold_cv='fold_1'
-    split='train'
+    dataset_path = '/media/angelo/PortableSSD/Assistant_Researcher/Predict/LUS_data_covid19/DATA_covid_compvital'
+    size = (224,224)
+    im_channels = 1 
+    fold_cv = 'fold_1'
+    split = 'train'
 
     transformation = transforms.Compose([transforms.Resize(size),
                                             transforms.ToTensor(),
@@ -192,7 +204,7 @@ if __name__ == "__main__":
                                          splitting_json='splitting.json',
                                          fold_cv=fold_cv,
                                          split=split,
-                                         trasformations=transformation
+                                         trasformations=None
                                         )
         print(len(dataset_split))
         dataset_list.append((dataset_split))
@@ -203,13 +215,13 @@ if __name__ == "__main__":
 
     ## plot a image from the dataset
     image, label, subject = full_dataset[0]
-    image = inv_normalize(image)
+    # image = inv_normalize(image)
     print(f"Image shape: {image.shape}")
     print(image.min(), image.max())
 
     plt.figure()
-    plt.imshow(image.permute(1, 2, 0).numpy())
-    # plt.show()
+    plt.imshow(image.permute(1, 2, 0).numpy(), cmap='gray')
+    plt.show()
 
     labels_count = np.zeros((5,))
     for image, label, subject in tqdm(full_dataset):
