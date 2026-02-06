@@ -3,14 +3,16 @@ File to initialize and Load models for LUS classification
 
 Adapted from: https://github.com/vital-ultrasound/public-lung
 """
-
 import json
 import os
 import torch
 from torch.serialization import add_safe_globals
 import numpy as np
-import lung_ultrasound.models.vital_models as classifiers
 from PIL import Image
+
+import lung_ultrasound.models.vital_models as classifiers
+import lung_ultrasound.utils as utils
+
 
 classes = ["A-lines", "B-lines", "Confluent B-line", "Consolidation", "Pleural Effussion"]
 
@@ -140,6 +142,11 @@ if __name__ == '__main__':
     subject_1 = "Reg_Image_182340_crop"                # score 0, tutto nullo
     subject_2 = "pneu-radiopaeda"                      # consolidation
     subject_3 = "Cov_convex_volpecelli_sonographic_v2" # B-lines
+
+    # extrapolate frames from the video of subject 1
+    subject_path = os.path.join(dataset_path, subject_1)
+    print(os.listdir(subject_path))
+    exit()
     
     initialize(input_size, model_path, verb=False)
    
