@@ -63,10 +63,22 @@ def plot_video_frames(video_path, sampling_frequency=3,  output_folder=None, sav
     fps = cap.get(cv2.CAP_PROP_FPS)
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+
+    # select only the fps greater that 29 fps
+    if fps < 29:
+        print(f"Video {video_path} has a frame rate of {fps} fps, which is less than 29 fps. Skipping.")
+        cap.release()
+        return
+
+    # --- Controllo FPS ---
+    if fps < sampling_frequency:
+        print(f"[SKIP] Video {video_path} has FPS={fps:.2f} < sampling_frequency={sampling_frequency}")
+        cap.release()
+        return  # salta il video
    
     # get frame index based on a sampling frequqenxies of 3HZ
-    sampling_frequency = 3  # Hz
-    interval = int(fps / sampling_frequency)
+    interval = max(1, int(round(fps / sampling_frequency)))  # <-- fix: interval must be >=1
     frame_indices = list(range(0, total_frames, interval))
     
     # Estrai i frame
@@ -84,38 +96,46 @@ def plot_video_frames(video_path, sampling_frequency=3,  output_folder=None, sav
     
     # Plot dei frame
     if frames:
-        n_frames = len(frames)
-        cols = min(5, n_frames)
-        rows = (n_frames + cols - 1) // cols
-        
-        fig, axes = plt.subplots(rows, cols, figsize=(20, 5 * rows), tight_layout=True)
-        fig.suptitle(f'extrapolate frames: {Path(video_path).name}', fontsize=16)
-        
-        # Gestisci il caso di un singolo frame
-        if n_frames == 1:
-            axes = np.array([axes])
-        
-        axes = axes.flatten() if n_frames > 1 else axes
-        
-
-        for i, (ax, frame) in enumerate(zip(axes, frames)):
-            ax.imshow(frame, cmap='gray')
-            ax.set_title(f'Frame {frame_indices[i]}')
-            ax.axis('off')
-        
+        for i, frame in enumerate(frames):
             if save_frames:
                 frame_path = os.path.join(output_folder, f'frame_{frame_indices[i]:04d}.png')
                 cv2.imwrite(frame_path, frame)
+    else:
+        print("No frames extracted")
+        
+    # if frames:
+    #     n_frames = len(frames)
+    #     cols = min(5, n_frames)
+    #     rows = (n_frames + cols - 1) // cols
+        
+    #     fig, axes = plt.subplots(rows, cols, figsize=(20, 5 * rows), tight_layout=True)
+    #     fig.suptitle(f'extrapolate frames: {Path(video_path).name}', fontsize=16)
+        
+    #     # Gestisci il caso di un singolo frame
+    #     if n_frames == 1:
+    #         axes = np.array([axes])
+        
+    #     axes = axes.flatten() if n_frames > 1 else axes
+        
+
+    #     for i, (ax, frame) in enumerate(zip(axes, frames)):
+    #         ax.imshow(frame, cmap='gray')
+    #         ax.set_title(f'Frame {frame_indices[i]}')
+    #         ax.axis('off')
+        
+    #         if save_frames:
+    #             frame_path = os.path.join(output_folder, f'frame_{frame_indices[i]:04d}.png')
+    #             cv2.imwrite(frame_path, frame)
 
             
-        # Nascondi gli assi non utilizzati
-        for i in range(n_frames, len(axes)):
-            axes[i].axis('off')
+    #     # Nascondi gli assi non utilizzati
+    #     for i in range(n_frames, len(axes)):
+    #         axes[i].axis('off')
         
-        plt.tight_layout()
-        if show_plot : plt.show()
-    else:
-        print("Not extrapoled frames")
+    #     plt.tight_layout()
+    #     if show_plot : plt.show()
+    # else:
+    #     print("Not extrapoled frames")
     
 
 def main(args):
@@ -129,13 +149,18 @@ def main(args):
     os.makedirs(args.output_folder, exist_ok=True)
     
     # get list of viode filename
-    type_of_probe = ['convex', 'linear']
+    type_of_probe = ['convex'] #, 'linear']
     video_paths = [os.path.join(args.videos_folder, probe, filename) for probe in type_of_probe for filename in os.listdir(os.path.join(args.videos_folder, probe))]
 
     for video_path in tqdm.tqdm(video_paths):
         # check if the file is a video:
         if not any(video_path.endswith(ext) for ext in ['.mp4', '.MP4', '.avi', '.mov', '.gif', '.mpeg']):
             print(f"File {video_path} is not a valid video file. Skipping.")
+            continue
+
+        # check if the pfs is greater than 29 fps
+        if cv2.VideoCapture(video_path).get(cv2.CAP_PROP_FPS) < 29:
+            print(f"Video {video_path} has a frame rate of {cv2.VideoCapture(video_path).get(cv2.CAP_PROP_FPS)} fps, which is less than 29 fps. Skipping.")
             continue
         
         filename = os.path.basename(video_path)
@@ -155,8 +180,9 @@ def main(args):
             video_labels_folder = os.path.join(video_output_folder, "labels")
             os.makedirs(video_images_folder, exist_ok=True)
             os.makedirs(video_labels_folder, exist_ok=True)
+            
 
-            plot_video_frames(video_path, sampling_frequency=3, output_folder=video_images_folder, save_frames=True, show_plot=False)
+            plot_video_frames(video_path, sampling_frequency=30, output_folder=video_images_folder, save_frames=True, show_plot=False)
 
             # save label as json file
             label_info = line.to_dict(orient='records')[0]
@@ -195,7 +221,7 @@ if __name__ == "__main__":
     parser.add_argument("--videos_folder", type=str, help="The path to the videos folder", 
                         default="/media/angelo/PortableSSD/Assistant_Researcher/Predict/LUS_data_covid19/covid19_ultrasound/data/pocus_videos")
     parser.add_argument("--output_folder", type=str, help="The path to the output folder",
-                        default="/media/angelo/PortableSSD/Assistant_Researcher/Predict/LUS_data_covid19/DATA_covid")
+                        default="/media/angelo/PortableSSD/Assistant_Researcher/Predict/LUS_data_covid19/DATA_covid_compvital")
     args = parser.parse_args()
 
     main(args)
