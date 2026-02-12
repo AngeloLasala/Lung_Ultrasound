@@ -222,7 +222,20 @@ if __name__ == "__main__":
     print(f"Video shape: {dataset[0][0].shape}", dataset[0][0].min(), dataset[0][0].max())  
 
     for img, label, subject in dataset:
-        print(f"Subject: {subject}, Label: {label}, ")
+        print(f"Subject: {subject}, image: {img.shape}, ")
+
+        ## plot first last and middle frame
+        # plt.figure(figsize=(15,5))
+        # plt.subplot(1,3,1)
+        # plt.imshow(img[0,0,:,:], cmap='gray')
+        # plt.title('First frame')
+        # plt.subplot(1,3,2)
+        # plt.imshow(img[0,-1,:,:], cmap='gray')
+        # plt.title('Last frame')
+        # plt.subplot(1,3,3)
+        # plt.imshow(img[0,img.shape[1]//2,:,:], cmap='gray')
+        # plt.title('Middle frame')
+        # plt.show()
 
     
 
