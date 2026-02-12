@@ -64,26 +64,14 @@ def plot_video_frames(video_path, sampling_frequency=3,  output_folder=None, sav
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
-
-    # select only the fps greater that 29 fps
-    if fps < 29:
-        print(f"Video {video_path} has a frame rate of {fps} fps, which is less than 29 fps. Skipping.")
-        cap.release()
-        return
-
-    # --- Controllo FPS ---
-    if fps < sampling_frequency:
-        print(f"[SKIP] Video {video_path} has FPS={fps:.2f} < sampling_frequency={sampling_frequency}")
-        cap.release()
-        return  # salta il video
    
     # get frame index based on a sampling frequqenxies of 3HZ
     interval = max(1, int(round(fps / sampling_frequency)))  # <-- fix: interval must be >=1
-    frame_indices = list(range(0, total_frames, interval))
-    
+    frame_indeces = list(range(0, total_frames, interval))
+ 
     # Estrai i frame
     frames = []
-    for idx in frame_indices:
+    for idx in frame_indeces:
         cap.set(cv2.CAP_PROP_POS_FRAMES, idx)
         ret, frame = cap.read()
         
@@ -98,7 +86,7 @@ def plot_video_frames(video_path, sampling_frequency=3,  output_folder=None, sav
     if frames:
         for i, frame in enumerate(frames):
             if save_frames:
-                frame_path = os.path.join(output_folder, f'frame_{frame_indices[i]:04d}.png')
+                frame_path = os.path.join(output_folder, f'frame_{frame_indeces[i]:04d}.png')
                 cv2.imwrite(frame_path, frame)
     else:
         print("No frames extracted")
@@ -120,11 +108,11 @@ def plot_video_frames(video_path, sampling_frequency=3,  output_folder=None, sav
 
     #     for i, (ax, frame) in enumerate(zip(axes, frames)):
     #         ax.imshow(frame, cmap='gray')
-    #         ax.set_title(f'Frame {frame_indices[i]}')
+    #         ax.set_title(f'Frame {frame_indeces[i]}')
     #         ax.axis('off')
         
     #         if save_frames:
-    #             frame_path = os.path.join(output_folder, f'frame_{frame_indices[i]:04d}.png')
+    #             frame_path = os.path.join(output_folder, f'frame_{frame_indeces[i]:04d}.png')
     #             cv2.imwrite(frame_path, frame)
 
             
@@ -155,7 +143,7 @@ def main(args):
     for video_path in tqdm.tqdm(video_paths):
         # check if the file is a video:
         if not any(video_path.endswith(ext) for ext in ['.mp4', '.MP4', '.avi', '.mov', '.gif', '.mpeg']):
-            print(f"File {video_path} is not a valid video file. Skipping.")
+            print(f"File {os.path.basename(video_path)} is not a valid video file. Skipping.")
             continue
 
         # check if the pfs is greater than 29 fps
@@ -181,8 +169,8 @@ def main(args):
             os.makedirs(video_images_folder, exist_ok=True)
             os.makedirs(video_labels_folder, exist_ok=True)
             
-
-            plot_video_frames(video_path, sampling_frequency=30, output_folder=video_images_folder, save_frames=True, show_plot=False)
+            sammpling_frequency = cv2.VideoCapture(video_path).get(cv2.CAP_PROP_FPS)
+            plot_video_frames(video_path, sampling_frequency=sammpling_frequency, output_folder=video_images_folder, save_frames=True, show_plot=False)
 
             # save label as json file
             label_info = line.to_dict(orient='records')[0]
