@@ -9,6 +9,7 @@ import torch
 from torch.serialization import add_safe_globals
 import numpy as np
 from PIL import Image
+import matplotlib.pyplot as plt
 
 import lung_ultrasound.models.vital_models as classifiers
 import lung_ultrasound.utils as utils
@@ -86,9 +87,7 @@ def dowork(frames: np.array, verbose=0):
         #im = Image.fromarray(image_cpp)
         #im.save("/home/ag09/data/VITAL/input.png")
         frames = torch.from_numpy(frames).type(torch.float).to(device).unsqueeze(0).unsqueeze(0)/255.0
-
-        # print(frames.shape)
-
+        
         try:
             out = net(frames)
             if 'stAtt' in params['model']:
@@ -144,12 +143,23 @@ if __name__ == '__main__':
     subject_3 = "Cov_convex_volpecelli_sonographic_v2" # B-lines
 
     # extrapolate frames from the video of subject 1
-    subject_path = os.path.join(dataset_path, subject_1)
-    print(os.listdir(subject_path))
-    exit()
+    subject_path = os.path.join(dataset_path, subject_3, 'images')
+    frames_list = utils.get_frames_from_video(subject_path, lenght=1, overlap=0.2, size=(64,64),
+                                         fps=30, sampling_f=30)
     
+
     initialize(input_size, model_path, verb=False)
-   
-    # ## dummy data
-    # frames = np.random.rand(30, 64, 64).astype(np.float32)*255.0
-    # dowork()
+    out, weighte_att, att = dowork(frames = frames_list[0])
+    print('Output probabilities:', out)
+
+    ## visualualize results
+    # central images
+    image_central = frames_list[0][frames_list[0].shape[0]//2,...]
+    im = Image.fromarray(image_central)
+    plt.figure()
+    plt.imshow(image_central, cmap='gray')
+    # attention
+    # plt.imshow(weighte_att, cmap='jet', alpha=0.2)
+    plt.title(f'predicted class: {classes[np.argmax(out)]}')
+    plt.show()    
+    
