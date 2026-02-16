@@ -1,5 +1,5 @@
 """
-Dataset script for defining DatasetVital for temporal analysis
+Dataset script for defining DatasetVital for temporal analysis compatible with the appl
 """
 import os
 import json
