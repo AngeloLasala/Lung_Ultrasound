@@ -1,5 +1,5 @@
 """
-Create LUS dataset form the data presented ONLY in ufficial repository:
+Create LUS dataset form the data presented ONLY in official repository:
 https://github.com/jannisborn/covid19_ultrasound/tree/master
 """
 import argparse
