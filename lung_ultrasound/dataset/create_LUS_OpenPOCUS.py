@@ -76,19 +76,44 @@ def create_and_fill_zone_folder(video_folder, output_folder, subject_id, zones):
             )
 
 
-def read_subfolder(video_folder, output_folder, zones):
+def read_subfolder(video_folder, output_folder, zones, metadata):
     """
     read and exract the frames for subject's subfolder.
     If the subfolder contains a .zip file, extract the frames from the .zip file and save them in the output folder.
     Else, save the frames in the output folder
     """
+    device = ['butterfly', 'echonous', 'sonosite', 'lumify', 'vave', 'ge']
     #chechk folder is empty
     if not os.listdir(video_folder):
         print(f"Warning: The folder {video_folder} is empty.")
 
     for i, sub_folder in enumerate(os.listdir(video_folder)):
+        print(f"{i}) Processing patient: {sub_folder}")
 
-        print(f"{i}) Processing subfolder: {sub_folder}")
+        ## retrieve the metadata for the current subject
+        patient_id = sub_folder if sub_folder.startswith("E") else sub_folder.split("t")[-1]
+        try:
+            patient_id = float(patient_id)
+        except:
+            pass
+
+        subject_metadata = metadata[metadata['AI ID'] == patient_id]
+        labels = {'device': device[subject_metadata['Device 0=butterfly, 1=echonous, 2=sonosite, 3=lumify, 4= vave'].values[0]],
+                  'nomal': subject_metadata['Normal or Not (0=normal; 1=abnormal)'].values[0],
+                    'z1': subject_metadata['Z1'].values[0] if not pd.isna(subject_metadata['Z1'].values[0]) else 'Nan',
+                    'z2': subject_metadata['Z2'].values[0] if not pd.isna(subject_metadata['Z2'].values[0]) else 'Nan',
+                    'z3': subject_metadata['Z3'].values[0] if not pd.isna(subject_metadata['Z3'].values[0]) else 'Nan',
+                    'z4': subject_metadata['Z4'].values[0] if not pd.isna(subject_metadata['Z4'].values[0]) else 'Nan',
+                    'z5': subject_metadata['Z5'].values[0] if not pd.isna(subject_metadata['Z5'].values[0]) else 'Nan',
+                    'z6': subject_metadata['Z6'].values[0] if not pd.isna(subject_metadata['Z6'].values[0]) else 'Nan',
+                    'z7': subject_metadata['Z7'].values[0] if not pd.isna(subject_metadata['Z7'].values[0]) else 'Nan',
+                    'z8': subject_metadata['Z8'].values[0] if not pd.isna(subject_metadata['Z8'].values[0]) else 'Nan',
+                    'z9': subject_metadata['Z9'].values[0] if not pd.isna(subject_metadata['Z9'].values[0]) else 'Nan',
+                    'z10': subject_metadata['Z10'].values[0] if not pd.isna(subject_metadata['Z10'].values[0]) else 'Nan',
+                    'z11': subject_metadata['Z11'].values[0] if not pd.isna(subject_metadata['Z11'].values[0]) else 'Nan',
+                    'z12': subject_metadata['Z12'].values[0] if not pd.isna(subject_metadata['Z12'].values[0]) else 'Nan'   
+        }
+        
         # find the .zip file in the subfolder
         zip_file = None
         for file in os.listdir(os.path.join(video_folder, sub_folder)):
@@ -113,6 +138,11 @@ def read_subfolder(video_folder, output_folder, zones):
             create_and_fill_zone_folder(os.path.join(video_folder, sub_folder), output_folder, sub_folder, zones)
             pass
 
+        ## save labels in a json file
+        label_file_path = os.path.join(output_folder, sub_folder, "labels.json")
+        with open(label_file_path, 'w') as f:
+            json.dump(labels, f, indent=4)
+
 
 def main(args):
     """
@@ -124,10 +154,34 @@ def main(args):
     os.makedirs(args.output_folder, exist_ok=True)
 
     metadata = read_metadata(args.metadata_file)
-    print(metadata.head())
+    ## dammi la riga con l'entrata di 'AI ID' == 2
 
-    ## read and fil the frames for sunjects's subfolder
-    # read_subfolder(args.videos_folder, args.output_folder, zones)
+    # read and fil the frames for sunjects's subfolder
+    read_subfolder(args.videos_folder, args.output_folder, zones, metadata)
+
+    # create a json file name splitting.json with the splitting of the dataset
+    subjects_list = os.listdir(args.output_folder)
+    np.random.seed(42)
+    np.random.shuffle(subjects_list)
+    # create a 5 fold cross validation
+    n_folds = 5
+    folds = np.array_split(subjects_list, n_folds)
+    
+    splitting_dict = {}
+    for fold in range(n_folds):
+        test_subjects = folds[fold].tolist()
+        val_subjects = folds[(fold + 1) % n_folds].tolist()
+        train_subjects = [subject for f in range(n_folds) if f != fold and f != (fold + 1) % n_folds for subject in folds[f].tolist()]
+        
+        splitting_dict[f'fold_{fold+1}'] = {
+            'train': train_subjects,
+            'val': val_subjects,
+            'test': test_subjects
+        }
+
+    splitting_file_path = os.path.join(args.output_folder, "splitting.json")
+    with open(splitting_file_path, 'w') as f:
+        json.dump(splitting_dict, f, indent=4)
 
 
 
