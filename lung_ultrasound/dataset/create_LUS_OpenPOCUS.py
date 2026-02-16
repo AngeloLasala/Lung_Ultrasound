@@ -184,7 +184,6 @@ def main(args):
         json.dump(splitting_dict, f, indent=4)
 
 
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Create the LUS dataset from OpenPOCUS data")
     parser.add_argument("--metadata_file", type=str, help="The path to the metadata file",
