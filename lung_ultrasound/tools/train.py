@@ -1,6 +1,11 @@
 """
-Main file to train the LUS multi instance classification. The code provides flags for hyperparameters tuning and directory path where load the data 
+Main file to train the LUS multi-classification task for LUS clip. 
+This version is tailored for 'Pisani' model from:
+"Nhat et al. Clinical benefit of AI-assisted lung ultrasound in a resource-limited intensive care unit."
+
+The code provides flags for hyperparameters tuning and directory path where load the data 
 as well as save the output.
+
 See cfg_train in lung_ultrasound/tools/__init__.py for configuration details.
 """
 import os
@@ -9,7 +14,6 @@ import argparse
 import torch
 from torchvision import transforms
 from torch.utils.tensorboard import SummaryWriter
-from torch.autograd import Variable
 from torch.utils.data import DataLoader
 
 import time
@@ -26,10 +30,9 @@ logging.getLogger("matplotlib").setLevel(logging.ERROR)
 
 
 from lung_ultrasound.dataset.dataset_LUS_covid import DatasetLUSCovid
-from lung_ultrasound.models.resnet import ResNetLUSCAM
-from lung_ultrasound.models.vgg16 import VGG16LUSCAM
+from lung_ultrasound.dataset.dataset_vital import DatasetVitalPOCUS, AugmentationConfig
 from lung_ultrasound.losses.bce import WeightedBCELoss, compute_pos_weights
-from lung_ultrasound.tools import cfg_train
+from lung_ultrasound.tools import cfg_train, load_model
 
 def main(args):
     """
@@ -51,7 +54,7 @@ def main(args):
         logtimestr = time.strftime('%d-%m-%Y_%H-%M')  # initialize the tensorboard for record the training process
         logging.info(f' Day: {logtimestr}\n')
 
-        results_path = os.path.join(cfg_train.main_path, cfg_train.results, cfg_train.dataset, cfg_train.backbone)
+        results_path = os.path.join(cfg_train.main_path, cfg_train.results, cfg_train.dataset, cfg_train.model_name)
         if not os.path.isdir(results_path):
             os.makedirs(results_path)
 
@@ -73,65 +76,79 @@ def main(args):
     torch.cuda.manual_seed(seed_value)                # set random seed for one GPU
     torch.cuda.manual_seed_all(seed_value)            # set random seed for all GPU
     torch.backends.cudnn.deterministic = True         # set random seed for convolution
+    
 
     ## create model ###########################################################
     logging.info(' Creating model...')
-    model = ResNetLUSCAM(num_classes=cfg_train.num_classes,
-                         backbone=cfg_train.backbone,
-                         pretrained=cfg_train.pretrained,
-                         freeze_backbone=cfg_train.freeze_backbone,
-                         pooling=cfg_train.pooling)
-
-    # model = VGG16LUSCAM(num_classes=cfg_train.num_classes,
-    #                      backbone=cfg_train.backbone,
-    #                      pretrained=cfg_train.pretrained,
-    #                      freeze_backbone=cfg_train.freeze_backbone,
-    #                      pooling=cfg_train.pooling)
-
+    model = load_model(cfg_train)
+    
 
     ## to do: add part to compute model complexity and numeber of parameters
     logging.info(f'  num_classes: {cfg_train.num_classes}')
-    logging.info(f'  backbone: {cfg_train.backbone}')
-    logging.info(f'  pretrained: {cfg_train.pretrained}')
-    logging.info(f'  freeze_backbone: {cfg_train.freeze_backbone}')
-    logging.info(f'  pooling: {cfg_train.pooling}')
+    logging.info(f'  pretrained: {cfg_train.pretrained_weights}')
     logging.info('-'*25)
 
     ## load dataset ###########################################################
     logging.info(' Creating train and val dataloader...')
-    transformation = transforms.Compose([transforms.ToTensor(),
-                                         transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                                                std=[0.229, 0.224, 0.225]),
-                                         transforms.Resize(cfg_train.size),  
-                                        ])
 
-    inv_normalize = transforms.Normalize(mean=[-0.485 / 0.229, -0.456 / 0.224, -0.406 / 0.225],
-                                        std=[1 / 0.229, 1 / 0.224, 1 / 0.225])
+    # data augmentation configuration for training
+    aug_config_train = AugmentationConfig(h_flip_p = cfg_train.h_flip_p,
+                                          v_flip_p = cfg_train.v_flip_p,
+                                          rotation_deg = cfg_train.rotation_deg,
+                                          crop_scale = cfg_train.crop_scale,
+                                          crop_ratio = cfg_train.crop_ratio,
+                                          brightness_p = cfg_train.brightness_p,
+                                          contrast_p = cfg_train.contrast_p,
+                                          brightness = cfg_train.brightness,
+                                          contrast = cfg_train.contrast)
 
-    train_dataset = DatasetLUSCovid(dataset_path = os.path.join(cfg_train.main_path, cfg_train.dataset),
-                                    data_augmentation = True,
+    # configuration without data augmentation
+    aug_config_val = AugmentationConfig(h_flip_p = 0,
+                                        v_flip_p = 0.0,
+                                        rotation_deg = 0.0,
+                                        crop_scale = (1.0, 1.0),
+                                        crop_ratio = (1.0, 1.0),
+                                        brightness_p = 0.0,
+                                        contrast_p = 0.0,
+                                        brightness = 0.0,
+                                        contrast = 0.0)
+
+    train_dataset = DatasetVitalPOCUS(dataset_path = os.path.join(cfg_train.main_path, cfg_train.dataset),
+                                      size = cfg_train.size,
+                                      im_channels = cfg_train.im_channels,
+                                      lenght = cfg_train.lenght,
+                                      overlap = cfg_train.overlap,
+                                      fps = cfg_train.fps,
+                                      sampling_f = cfg_train.sampling_f,
+                                      splitting_json = cfg_train.splitting,
+                                      fold_cv = cfg_train.fold_cv,
+                                      split = 'train', 
+                                      normalize = True,
+                                      data_augmentation = True,
+                                      aug_config = aug_config_train)
+
+    val_dataset = DatasetVitalPOCUS(dataset_path = os.path.join(cfg_train.main_path, cfg_train.dataset),
                                     size = cfg_train.size,
                                     im_channels = cfg_train.im_channels,
-                                    splitting_json='splitting.json',
-                                    fold_cv = cfg_train.fold_cv,
-                                    split = 'train',
-                                    trasformations=transformation)
-
-    val_dataset = DatasetLUSCovid(dataset_path = os.path.join(cfg_train.main_path, cfg_train.dataset),
-                                    data_augmentation = False,
-                                    size = cfg_train.size,
-                                    im_channels = cfg_train.im_channels,
-                                    splitting_json='splitting.json',
+                                    lenght = cfg_train.lenght,
+                                    overlap = cfg_train.overlap,
+                                    fps = cfg_train.fps,
+                                    sampling_f = cfg_train.sampling_f,
+                                    splitting_json = cfg_train.splitting,
                                     fold_cv = cfg_train.fold_cv,
                                     split = 'val', 
-                                    trasformations=transformation)
+                                    normalize = True,
+                                    data_augmentation = True,
+                                    aug_config = aug_config_val)
 
     trainloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=8, pin_memory=True)
     valloader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=8, pin_memory=True)
+
     logging.info(f'   fold_cv: {cfg_train.fold_cv}')
     logging.info(f'   train dataset: {len(train_dataset)}')
     logging.info(f'   val dataset: {len(val_dataset)}')
     logging.info('-'*25)
+    exit()
 
     ## Train initialization ########################################################################    
     logging.info(' Training initialization...')
@@ -254,9 +271,7 @@ def main(args):
         json.dump(cfg_dict, f, indent=4)
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Train LUS Multi-Instance Classifier')
-    # parser.add_argument('--data_dir', type=str, required=True,
-    #                     help='Path to the dataset directory')
+    parser = argparse.ArgumentParser(description='Train multi-classification model for LUS clip')
     parser.add_argument('--log', type=str, default='debug', help='Logging level')
     parser.add_argument('--keep_log', action='store_true', help='keep the loss,lr, performance during training or not, default=False')
 
