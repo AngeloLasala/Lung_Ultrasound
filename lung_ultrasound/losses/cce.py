@@ -59,9 +59,7 @@ def compute_class_weights(labels, num_classes, epsilon=1e-5):
         torch.Tensor: Class weights, shape (num_classes,)
     """
     class_counts = torch.bincount(labels, minlength=num_classes).float()
-    print('class_counts:', class_counts)
     total_samples = labels.size(0)
-    print('total_samples:', total_samples)
     
     # Compute weights: inverse of frequency
     class_weights = total_samples / (class_counts + epsilon)

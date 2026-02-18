@@ -440,8 +440,8 @@ class DatasetVitalPOCUS(torch.utils.data.Dataset):
 
     def __getitem__(self, index):
         video, label, subject, zone = self.get_video_label(index)
-        label_tensor = F.one_hot(torch.tensor(label), num_classes=5)
         video_tensor = torch.tensor(video, dtype=torch.float32) / 255.0  # (T, H, W)
+        label_tensor = torch.tensor(label)
         
         if self.data_augmentation:   ## SPATIAL AND INTENSITY AUGMENTATION
             video_tensor = self.aug_pipeline(video_tensor)  # (T, H, W)

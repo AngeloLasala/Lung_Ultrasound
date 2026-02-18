@@ -47,14 +47,16 @@ class cfg_train:
     contrast = 0.10
 
     ## train configuration
-    cosine_annealing = False   # use cosine annealing learning rate scheduler
     device = 'cuda'
     epochs = 100
     learning_rate = 0.001
-    batch_size = 8
-    cosine_annealing = False   # use cosine annealing learning rate scheduler
-    eval_freq = 1             # evaluate every n epochs
+    batch_size = 16
+    cosine_annealing = False       # use cosine annealing learning rate scheduler
+    eval_freq = 1                  # evaluate every n epochs
     verbose = True
+    ema_decay = 0.999              # value for ema decay for model saving
+    early_stopping_patience = 20   # epoch for patience
+    min_delta = 1e-4               # for stability in early stopping
 
 
 
