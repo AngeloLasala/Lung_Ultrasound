@@ -187,6 +187,8 @@ def main(args):
         train_losses = 0
         for batch_idx, (videos, labels, subject, zones) in enumerate(trainloader):
             videos, labels, subject, zones = videos.to(device), labels.to(device), subject, zones
+            print(labels)
+            exit()
             labels = torch.argmax(labels, dim=1)
 
             # forward
@@ -225,6 +227,9 @@ def main(args):
                     loss = criterion(outputs, labels)
                     val_losses += loss.item()
             avg_val_loss = val_losses / len(valloader)
+
+            ## add avg_val_loss to the progress 
+            progress_bar.set_postfix({'loss': train_losses/len(trainloader), 'val_loss': avg_val_loss, 'lr': optimizer.param_groups[0]['lr']})
 
             if args.keep_log:
                 TensorWriter.add_scalar('Val/Loss', avg_val_loss, epoch)
@@ -269,6 +274,8 @@ def main(args):
                 save_path = os.path.join(checkpoint_path, f'last_model.pth')
                 torch.save(model.state_dict(), save_path)
                 logging.info(f'  --> saved last model at epoch {epoch+1}')
+        
+        progress_bar.close()
 
     cfg_dict = {k: v for k, v in cfg_train.__dict__.items() if not k.startswith("__")}
     with open(os.path.join(results_path, cfg_train.fold_cv, logtimestr, 'train_config.json'), 'w') as f:
