@@ -396,7 +396,9 @@ class DatasetVitalPOCUS(torch.utils.data.Dataset):
                       split : str,
                       data_augmentation : bool,
                       normalize : bool,
-                      aug_config : Optional[AugmentationConfig] = None) :
+                      aug_config : Optional[AugmentationConfig] = None,
+                      mean : Optional[float] = None, 
+                      std : Optional[float] = None) :
         # dataset info
         self.dataset_path = dataset_path
         
@@ -430,7 +432,7 @@ class DatasetVitalPOCUS(torch.utils.data.Dataset):
         dict_videos_labels = self._get_videos_label_dict()
         self.videos_list, self.labels_list, self.subject_list, self.zones_list = dict_videos_labels['videos'], dict_videos_labels['labels'], dict_videos_labels['subjects'], dict_videos_labels['zones']
         
-        self.mean, self.std = self.compute_dataset_stats().values()  ## estimate mean and std for normalization
+        self.mean, self.std = self.compute_dataset_stats().values() #if split == 'train' else (mean, std)  # default to 0.5 if not training split
 
 
     def __len__(self):
