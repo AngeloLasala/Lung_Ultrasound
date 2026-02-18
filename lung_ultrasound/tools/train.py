@@ -31,7 +31,7 @@ logging.getLogger("matplotlib").setLevel(logging.ERROR)
 
 from lung_ultrasound.dataset.dataset_LUS_covid import DatasetLUSCovid
 from lung_ultrasound.dataset.dataset_vital import DatasetVitalPOCUS, AugmentationConfig
-from lung_ultrasound.losses.bce import WeightedBCELoss, compute_pos_weights
+from lung_ultrasound.losses.cce import WeightedCrossEntropyLoss, compute_class_weights
 from lung_ultrasound.tools import cfg_train, load_model
 
 def main(args):
@@ -81,7 +81,6 @@ def main(args):
     ## create model ###########################################################
     logging.info(' Creating model...')
     model = load_model(cfg_train)
-    
 
     ## to do: add part to compute model complexity and numeber of parameters
     logging.info(f'  num_classes: {cfg_train.num_classes}')
@@ -126,7 +125,7 @@ def main(args):
                                       normalize = True,
                                       data_augmentation = True,
                                       aug_config = aug_config_train)
-
+                                      
     val_dataset = DatasetVitalPOCUS(dataset_path = os.path.join(cfg_train.main_path, cfg_train.dataset),
                                     size = cfg_train.size,
                                     im_channels = cfg_train.im_channels,
@@ -148,7 +147,7 @@ def main(args):
     logging.info(f'   train dataset: {len(train_dataset)}')
     logging.info(f'   val dataset: {len(val_dataset)}')
     logging.info('-'*25)
-    exit()
+    
 
     ## Train initialization ########################################################################    
     logging.info(' Training initialization...')
@@ -168,13 +167,16 @@ def main(args):
         optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, betas=(0.9, 0.999), eps=1e-08, weight_decay=0, amsgrad=False)
     logging.info('-'*25)
 
+
     #initial best loss
     best_loss = float('inf')
     loss_log = np.zeros(epochs+1)
 
     # criterion
-    pos_weight = compute_pos_weights(torch.stack([label for _, label, _ in train_dataset], dim=0))
-    criterion = WeightedBCELoss(pos_weight=pos_weight)
+    logging.info(' Computing class weight...')
+    class_weights = compute_class_weights(torch.tensor(train_dataset.labels_list), num_classes=cfg_train.num_classes)
+    logging.info(f"class weights: {class_weights}")
+    criterion = WeightedCrossEntropyLoss(class_weights = class_weights)
 
     model.to(device)
     for epoch in range(epochs):
@@ -183,11 +185,12 @@ def main(args):
 
         model.train()
         train_losses = 0
-        for batch_idx, (images, labels, subj) in enumerate(trainloader):
-            images, labels = images.to(device), labels.to(device).float() 
-            
+        for batch_idx, (videos, labels, subject, zones) in enumerate(trainloader):
+            videos, labels, subject, zones = videos.to(device), labels.to(device), subject, zones
+            labels = torch.argmax(labels, dim=1)
+
             # forward
-            outputs = model(images)
+            outputs = model(videos)[0].to(device)
             loss = criterion(outputs, labels)
 
             # backward
@@ -213,11 +216,12 @@ def main(args):
         if epoch % cfg_train.eval_freq == 0:
             model.eval()
             val_losses = 0
-            for batch_idx, (images, labels, subj) in enumerate(valloader):
-                images, labels = images.to(device), labels.to(device).float()
+            for batch_idx, (videos, labels, subject, zones) in enumerate(valloader):
+                videos, labels, subject, zones = videos.to(device), labels.to(device), subject, zones
+                labels = torch.argmax(labels, dim=1)
 
                 with torch.no_grad():
-                    outputs = model(images)
+                    outputs = model(videos)[0].to(device)
                     loss = criterion(outputs, labels)
                     val_losses += loss.item()
             avg_val_loss = val_losses / len(valloader)
@@ -226,31 +230,31 @@ def main(args):
                 TensorWriter.add_scalar('Val/Loss', avg_val_loss, epoch)
 
                 ## to do: aggiugnere parte di visualizzaione image e cam
-                idx_v = np.random.randint(0, len(val_dataset))
-                image_v, label_v, subj_v = val_dataset[idx_v]
-                image_v_input = image_v.unsqueeze(0).to(device)
-                label_v_input = label_v.unsqueeze(0).to(device).float()
+                # idx_v = np.random.randint(0, len(val_dataset))
+                # image_v, label_v, subj_v = val_dataset[idx_v]
+                # image_v_input = image_v.unsqueeze(0).to(device)
+                # label_v_input = label_v.unsqueeze(0).to(device).float()
 
-                model.eval()
-                with torch.no_grad():
-                    output_v = model(image_v_input)
-                    outpunt_v_sigmoid = torch.sigmoid(output_v).cpu().numpy()[0]
-                #     cam_v = model.get_cam_weights()
-                #     print(cam_v.shape, output_v)
-                #     exit()
+                # model.eval()
+                # with torch.no_grad():
+                #     output_v = model(image_v_input)
+                #     outpunt_v_sigmoid = torch.sigmoid(output_v).cpu().numpy()[0]
+                # #     cam_v = model.get_cam_weights()
+                # #     print(cam_v.shape, output_v)
+                # #     exit()
                 
-                ## create figure
-                fig, axes = plt.subplots(1, 2, figsize=(10, 5))
-                image_v = inv_normalize(image_v)  # denormalize for visualization
-                image_v = image_v.permute(1, 2, 0).cpu().numpy()  # convert to HWC format for visualization
-                axes[0].imshow(image_v, cmap='gray')
-                axes[0].set_title(f"Label {label_v_input}")
+                # ## create figure
+                # fig, axes = plt.subplots(1, 2, figsize=(10, 5))
+                # image_v = inv_normalize(image_v)  # denormalize for visualization
+                # image_v = image_v.permute(1, 2, 0).cpu().numpy()  # convert to HWC format for visualization
+                # axes[0].imshow(image_v, cmap='gray')
+                # axes[0].set_title(f"Label {label_v_input}")
 
-                axes[1].imshow(image_v, cmap='gray')
-                # axes[1].set_title(f'Output {outpunt_v_sigmoid}')
+                # axes[1].imshow(image_v, cmap='gray')
+                # # axes[1].set_title(f'Output {outpunt_v_sigmoid}')
 
-                TensorWriter.add_figure('Val/Image_and_Output', fig, epoch)
-                plt.close(fig)
+                # TensorWriter.add_figure('Val/Image_and_Output', fig, epoch)
+                # plt.close(fig)
 
             
             if avg_val_loss < best_loss:
