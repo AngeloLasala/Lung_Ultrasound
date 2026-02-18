@@ -47,9 +47,10 @@ class cfg_train:
     contrast = 0.10
 
     ## train configuration
+    cosine_annealing = False   # use cosine annealing learning rate scheduler
     device = 'cuda'
     epochs = 100
-    learning_rate = 1e-4
+    learning_rate = 0.001
     batch_size = 8
     cosine_annealing = False   # use cosine annealing learning rate scheduler
     eval_freq = 1             # evaluate every n epochs
