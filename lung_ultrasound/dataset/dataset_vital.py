@@ -356,7 +356,7 @@ class DatasetVitalPOCUS(torch.utils.data.Dataset):
     """
     DatasetVital class for developing DL model for LUS video analysis.
     Dowstream task is the classification of the multual-exslivide bio-markers:
-    ["normal", "B-lines", "Consolidation", "B-lines + Consolidations", "Indeterminate"]
+    ["Normal", "B-lines", "Consolidation", "B-lines + Consolidations", "Indeterminate"]
 
     Note: I suppose that the acquisitions fps is 30 fps, so I adopt the same structure of above class
 
@@ -432,7 +432,7 @@ class DatasetVitalPOCUS(torch.utils.data.Dataset):
         dict_videos_labels = self._get_videos_label_dict()
         self.videos_list, self.labels_list, self.subject_list, self.zones_list = dict_videos_labels['videos'], dict_videos_labels['labels'], dict_videos_labels['subjects'], dict_videos_labels['zones']
         
-        self.mean, self.std = self.compute_dataset_stats().values() #if split == 'train' else (mean, std)  # default to 0.5 if not training split
+        self.mean, self.std = self.compute_dataset_stats().values() if split != 'test'  else (mean, std)  # default to 0.5 if not training split
 
 
     def __len__(self):

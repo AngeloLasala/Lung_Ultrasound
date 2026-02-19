@@ -80,6 +80,7 @@ def confusion_matrix(labels, preds, classes):
     ## print classification report
     print("Classification Report:")
     print(classification_report(labels, preds, target_names=classes))
+    report = classification_report(labels, preds, target_names=classes)
 
     ## compute the chance level for each class and the overall chance level
     total_samples = len(labels)
@@ -155,5 +156,6 @@ def confusion_matrix(labels, preds, classes):
 
 
     plt.tight_layout()
-    plt.show()
+    
+    return report, fig, stratified_chance, majority_chance
             

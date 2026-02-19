@@ -38,24 +38,24 @@ class cfg_train:
     ## augumentation configuration
     h_flip_p = 0.5
     v_flip_p = 0.0
-    rotation_deg = 10.0
-    crop_scale = (1.0, 1.0)
-    crop_ratio = (1.0, 1.0)
+    rotation_deg = 23.0
+    crop_scale = (0.5, 0.8)
+    crop_ratio = (0.9, 1.1)
     brightness_p = 0.5
     contrast_p = 0.5
-    brightness = 0.10
-    contrast = 0.10
+    brightness = 0.15
+    contrast = 0.15
 
     ## train configuration
     device = 'cuda'
     epochs = 100
-    learning_rate = 0.001
-    batch_size = 16
-    cosine_annealing = False       # use cosine annealing learning rate scheduler
+    learning_rate = 0.01
+    batch_size = 8
+    cosine_annealing = True        # use cosine annealing learning rate scheduler
     eval_freq = 1                  # evaluate every n epochs
     verbose = True
     ema_decay = 0.999              # value for ema decay for model saving
-    early_stopping_patience = 20   # epoch for patience
+    early_stopping_patience = 60   # epoch for patience
     min_delta = 1e-4               # for stability in early stopping
 
 
@@ -65,6 +65,16 @@ def load_model(config):
     Load the model and initialize the network
     model_path: path where the config file and the model weights are.
     """
+
+    # Convert dict config to object-like access if needed
+    if isinstance(config, dict):
+        class ConfigWrapper:
+            def __init__(self, d):
+                for k, v in d.items():
+                    setattr(self, k, v)
+        config = ConfigWrapper(config)
+
+        
     global device
     global net
     global verbose
