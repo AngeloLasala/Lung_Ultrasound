@@ -10,9 +10,7 @@ See cfg_train in lung_ultrasound/tools/__init__.py for configuration details.
 """
 import os
 import argparse
-
 import torch
-from torchvision import transforms
 from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data import DataLoader
 
@@ -22,14 +20,7 @@ import random
 import logging
 import json
 import numpy as np
-import matplotlib
-matplotlib.use('Agg') 
 
-import matplotlib.pyplot as plt
-logging.getLogger("matplotlib").setLevel(logging.ERROR)
-
-
-from lung_ultrasound.dataset.dataset_LUS_covid import DatasetLUSCovid
 from lung_ultrasound.dataset.dataset_vital import DatasetVitalPOCUS, AugmentationConfig
 from lung_ultrasound.losses.cce import WeightedCrossEntropyLoss, compute_class_weights
 from lung_ultrasound.tools import cfg_train, load_model
