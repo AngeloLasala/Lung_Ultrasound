@@ -3,6 +3,9 @@ Helper for improving training stability
 """
 import copy
 import torch
+import numpy as np
+from sklearn.metrics import f1_score
+
 
 class EMA:
     """
@@ -85,7 +88,6 @@ class EMA:
         def __exit__(self, *args):
             self.ema.restore(self.model, self.original_state)
 
-
 class EarlyStopping:
     """
     Stops training when the monitored metric has not improved for
@@ -128,3 +130,51 @@ class EarlyStopping:
                 self.should_stop = True
 
         return self.should_stop
+
+def run_validation(model, valloader, criterion, device, monitor_metric):
+    """
+    Run one full validation pass and return a dict with all tracked metrics.
+
+    Args:
+        model:          model to evaluate (already has correct weights loaded).
+        valloader:      validation DataLoader.
+        criterion:      loss function.
+        device:         torch device.
+        monitor_metric: one of {'loss', 'weighted_f1'}.
+
+    Returns:
+        metrics (dict): {
+            'loss':        float,
+            'weighted_f1': float,
+            'monitor':     float   ← the value of the metric to monitor
+        }
+    """
+    model.eval()
+    val_losses   = 0.0
+    all_preds    = []
+    all_labels   = []
+
+    for videos, labels, subject, zones in valloader:
+        videos, labels = videos.to(device), labels.to(device)
+
+        with torch.no_grad():
+            outputs    = model(videos)[0].to(device)
+            loss       = criterion(outputs, labels)
+            val_losses += loss.item()
+
+            preds = torch.argmax(outputs, dim=1)
+            all_preds.append(preds.cpu().numpy())
+            all_labels.append(labels.cpu().numpy())
+
+    all_preds  = np.concatenate(all_preds)
+    all_labels = np.concatenate(all_labels)
+
+    avg_loss     = val_losses / len(valloader)
+    weighted_f1  = f1_score(all_labels, all_preds, average='weighted', zero_division=0)
+
+    metrics = {
+        'loss':        avg_loss,
+        'weighted_f1': weighted_f1,
+        'monitor':     avg_loss if monitor_metric == 'loss' else weighted_f1,
+    }
+    return metrics

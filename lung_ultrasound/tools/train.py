@@ -24,7 +24,7 @@ import numpy as np
 from lung_ultrasound.dataset.dataset_vital import DatasetVitalPOCUS, AugmentationConfig
 from lung_ultrasound.losses.cce import WeightedCrossEntropyLoss, compute_class_weights
 from lung_ultrasound.tools import cfg_train, load_model
-from lung_ultrasound.tools.helper import EMA, EarlyStopping
+from lung_ultrasound.tools.helper import EMA, EarlyStopping, run_validation
 
 def main(args):
     """
@@ -41,6 +41,13 @@ def main(args):
     learning_rate = cfg_train.learning_rate
     device = torch.device(cfg_train.device)
 
+    # metric to monitor for best-model saving and early stopping
+    # supported: 'loss' (minimize) | 'weighted_f1' (maximize)
+    monitor_metric = getattr(cfg_train, 'monitor_metric', 'loss')
+    assert monitor_metric in ('loss', 'weighted_f1'), \
+        f"monitor_metric must be 'loss' or 'weighted_f1', got '{monitor_metric}'"
+    monitor_mode = 'min' if monitor_metric == 'loss' else 'max'
+    
     # main file for results
     if args.keep_log:
         logtimestr = time.strftime('%d-%m-%Y_%H-%M')  # initialize the tensorboard for record the training process
@@ -170,17 +177,26 @@ def main(args):
     logging.info(f'  Early stopping patience: {es_patience} evaluation epochs')
     early_stopping = EarlyStopping(patience=es_patience, min_delta = min_delta, mode='min')
 
-
-    #initial best loss
-    best_loss = float('inf')
-    loss_log = np.zeros(epochs+1)
-
     # criterion
     logging.info(' Computing class weight...')
     class_weights = compute_class_weights(torch.tensor(train_dataset.labels_list), num_classes=cfg_train.num_classes)
     logging.info(f" class weights: {class_weights}\n")
     criterion = WeightedCrossEntropyLoss(class_weights = class_weights)
     logging.info('-'*25)
+
+    # best metric tracker
+    logging.info(f'  monitor_metric: {monitor_metric} ({monitor_mode})')
+    best_monitor_value = float('inf') if monitor_mode == 'min' else float('-inf')
+    loss_log = np.zeros(epochs+1)
+
+    def is_improved(current):
+        """
+        Return True if current monitor value is better than the best seen so far.
+        """
+        if monitor_mode == 'min':
+            return current < best_monitor_value - min_delta
+        else:
+            return current > best_monitor_value + min_delta
     
     for epoch in range(epochs):
         progress_bar = tqdm(total=len(trainloader), disable=False)
@@ -220,44 +236,37 @@ def main(args):
         if epoch % cfg_train.eval_freq == 0:
 
             with ema.average_parameters(ema, model):
-                model.eval()
-                val_losses = 0
-                for batch_idx, (videos, labels, subject, zones) in enumerate(valloader):
-                    videos, labels, subject, zones = videos.to(device), labels.to(device), subject, zones
+                val_metrics = run_validation(model, valloader, criterion, device, monitor_metric)
 
-                    with torch.no_grad():
-                        outputs = model(videos)[0].to(device)
-                        loss = criterion(outputs, labels)
-                        val_losses += loss.item()
-
-
-            avg_val_loss = val_losses / len(valloader)
+            monitor_value = val_metrics['monitor']
+            # avg_val_loss = val_losses / len(valloader)
 
             ## add avg_val_loss to the progress 
             progress_bar.set_postfix({'loss': train_losses/len(trainloader), 
-                                      'val_loss': avg_val_loss, 
+                                      'val_loss': f"{val_metrics['loss']:.4f}",
+                                      'val_wf1': f"{val_metrics['weighted_f1']:.4f}",
                                       'lr': optimizer.param_groups[0]['lr'],
-                                      'es_counter':   f"{early_stopping.counter}/{es_patience}",
+                                      'es': f"{early_stopping.counter}/{es_patience}",
                                       })
 
             if args.keep_log:
-                TensorWriter.add_scalar('Val/Loss', avg_val_loss, epoch)
-
+                TensorWriter.add_scalar('Val/Loss',        val_metrics['loss'],        epoch)
+                TensorWriter.add_scalar('Val/Weighted_F1', val_metrics['weighted_f1'], epoch)
                 ## to do: aggiugnere parte di visualizzaione image e cam
             
-            if avg_val_loss < best_loss:
-                best_loss = avg_val_loss
-
+            ## save best model
+            if is_improved(monitor_value):
+                best_monitor_value = monitor_value
                 if args.keep_log:
-                    # save best ema model
-                    save_path = os.path.join(checkpoint_path, f'best_ema_model.pth')
-                    torch.save(ema.state_dict(), save_path)
-
-                    save_path = os.path.join(checkpoint_path, f'best_model.pth')
-                    torch.save(model.state_dict(), save_path)
+                    torch.save(ema.state_dict(), os.path.join(checkpoint_path, f'best_ema_model.pth'))
+                    torch.save(model.state_dict(), os.path.join(checkpoint_path, f'best_model.pth'))
+                    logging.info(
+                        f'  --> best model saved | epoch {epoch+1} | '
+                        f'{monitor_metric}: {best_monitor_value:.4f}'
+                    )
 
             # ── early stopping check ──────────────────────────────────────────
-            stop = early_stopping.step(avg_val_loss)
+            stop = early_stopping.step(monitor_value)
             if stop:
                 logging.info(
                     f'  Early stopping triggered after {epoch + 1} epochs '
@@ -268,8 +277,7 @@ def main(args):
         
         progress_bar.close()
 
-
-      ## save last model
+    ## save last model
     if args.keep_log:
         save_path = os.path.join(checkpoint_path, f'last_model.pth')
         torch.save(model.state_dict(), save_path)

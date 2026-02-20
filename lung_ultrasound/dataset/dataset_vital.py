@@ -668,11 +668,11 @@ if __name__ == "__main__":
         plt.imshow(img[0,0,:,:], cmap='gray')
         plt.title(f'Subject: {subject}, Zone: {zone}, Label: {label}, First frame')
         plt.subplot(1,3,2)
-        plt.imshow(img[0,-1,:,:], cmap='gray')
-        plt.title('Last frame')
-        plt.subplot(1,3,3)
         plt.imshow(img[0,img.shape[1]//2,:,:], cmap='gray')
         plt.title('Middle frame')
+        plt.subplot(1,3,3)
+        plt.imshow(img[0,-1,:,:], cmap='gray')
+        plt.title('Last frame')
         plt.show()
 
 

@@ -39,24 +39,25 @@ class cfg_train:
     h_flip_p = 0.5
     v_flip_p = 0.0
     rotation_deg = 23.0
-    crop_scale = (0.5, 0.8)
-    crop_ratio = (0.9, 1.1)
+    crop_scale = (1.0, 1.0)
+    crop_ratio = (1.0, 1.0)
     brightness_p = 0.5
     contrast_p = 0.5
-    brightness = 0.15
-    contrast = 0.15
+    brightness = 0.10
+    contrast = 0.10
 
     ## train configuration
     device = 'cuda'
     epochs = 100
-    learning_rate = 0.01
+    learning_rate = 0.001
     batch_size = 8
-    cosine_annealing = True        # use cosine annealing learning rate scheduler
+    cosine_annealing = False       # use cosine annealing learning rate scheduler
     eval_freq = 1                  # evaluate every n epochs
     verbose = True
     ema_decay = 0.999              # value for ema decay for model saving
     early_stopping_patience = 60   # epoch for patience
     min_delta = 1e-4               # for stability in early stopping
+    monitor_metric = 'weighted_f1'    
 
 
 
