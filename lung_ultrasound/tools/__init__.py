@@ -48,14 +48,14 @@ class cfg_train:
 
     ## train configuration
     device = 'cuda'
-    epochs = 100
+    epochs = 150
     learning_rate = 0.001
     batch_size = 8
     cosine_annealing = False       # use cosine annealing learning rate scheduler
     eval_freq = 1                  # evaluate every n epochs
     verbose = True
     ema_decay = 0.999              # value for ema decay for model saving
-    early_stopping_patience = 60   # epoch for patience
+    early_stopping_patience = 150  # epoch for patience
     min_delta = 1e-4               # for stability in early stopping
     monitor_metric = 'weighted_f1'    
 

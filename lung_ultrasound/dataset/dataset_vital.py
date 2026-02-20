@@ -21,6 +21,7 @@ import h5py
 import numpy as np
 import math
 import matplotlib.pyplot as plt
+from lung_ultrasound.utils import show_hdf5_video
 
 @dataclass
 class AugmentationConfig:
@@ -648,7 +649,8 @@ if __name__ == "__main__":
                             split = split, 
                             normalize = True,
                             data_augmentation = True,
-                            aug_config = aug_config)
+                            aug_config = aug_config,
+                            mean=0.4, std=0.1)
     print("DatasetVitalPOCUS created.")
     print(f"Dataset length: {len(dataset)}")
     print(f"Estimated dataset mean: {dataset.mean:.4f}, std: {dataset.std:.4f}")
@@ -657,6 +659,12 @@ if __name__ == "__main__":
     dataloader = DataLoader(dataset, batch_size=4, shuffle=True)
     print(dataset.data_augmentation)
     print(dataset.aug_config)
+
+    ##
+    from lung_ultrasound.tools import cfg_train
+    import h5py
+    show_hdf5_video(main_path=cfg_train.main_path, dataset=cfg_train.dataset, 
+                    patient='ED7_uninformative', zone='z1', fps=30)
 
     for img, label, subject, zone in dataset:
         # plot first last and middle frame

@@ -5,6 +5,9 @@ import os
 import torch
 import numpy as np
 from PIL import Image
+import h5py
+import cv2
+
 
 def get_frames_from_video(video_path, lenght, overlap, size,
                           fps=30, sampling_f=30):
@@ -158,4 +161,39 @@ def confusion_matrix(labels, preds, classes):
     plt.tight_layout()
     
     return report, fig, stratified_chance, majority_chance
-            
+
+def show_hdf5_video(main_path, dataset, patient, zone, fps=20):
+    """
+    Display a video clip from an HDF5 dataset for a specific patient and zone.
+    
+    Args:
+        main_path (str): Main folder containing the data.
+        dataset (str): Name of the dataset folder in HDF5.
+        patient (str): Patient identifier.
+        zone (str): Video zone (folder name and .h5 filename).
+        fps (int): Frames per second for playback.
+    """
+    patient_path = os.path.join(main_path, dataset, patient)
+    video_path = os.path.join(patient_path, zone, f'{zone}.h5')
+
+    # Check if the file exists
+    if not os.path.isfile(video_path):
+        raise FileNotFoundError(f"File not found: {video_path}")
+
+    # Open the HDF5 file
+    with h5py.File(video_path, 'r') as f:
+        frames = f['images'][()]
+
+    delay = int(1000 / fps)  # time between frames in ms
+
+    for frame in frames:
+        if frame.dtype != np.uint8:
+            frame = (255 * frame).astype(np.uint8)
+        # If the frame is RGB, OpenCV expects BGR
+        if frame.ndim == 3 and frame.shape[2] == 3:
+            frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+        cv2.imshow('Video', frame)
+        if cv2.waitKey(delay) & 0xFF == ord('q'):
+            break
+
+    cv2.destroyAllWindows()
