@@ -16,6 +16,7 @@ import json
 import torch
 from torch.utils.data.dataloader import DataLoader
 from torchvision import transforms
+import cv2 
 import torchvision.transforms.functional as TF
 import h5py
 import numpy as np
@@ -492,7 +493,9 @@ class DatasetVitalPOCUS(torch.utils.data.Dataset):
 
                     frames = self._get_sequences_of_frames(video_frames)
                     for i in frames:
-                        image_label_dict['videos'].append(i)
+                        ## add resize here to avoi to load huge amount of tensor in the dict -> the code will crash otherwise!!!
+                        ii = np.array([cv2.resize(frame, self.size, interpolation=cv2.INTER_LINEAR) for frame in i])
+                        image_label_dict['videos'].append(ii)
                         image_label_dict['labels'].append(subject_labels[zone])
                         image_label_dict['subjects'].append(subject)
                         image_label_dict['zones'].append(zone)
@@ -614,10 +617,10 @@ if __name__ == "__main__":
 
     ## Dataset vital pocus
     dataset_path = "/media/angelo/PortableSSD/Assistant_Researcher/Predict/OpenPOCUS/DATA_Lung_Database"
-    size = (64*2,64*2)      # size of each frame
+    size = (128,128)      # size of each frame
     im_channels = 1     # number of channels of the image (1 for grayscale, 3 for RGB)
     fold_cv = 'fold_1'  # numer of the 5-fold cross validation fold to use (from fold_1 to fold_5)   
-    split = 'test'
+    split = 'train'
     splitting = 'splitting.json'
     lenght = 1         # lenght of the segments of frames to return (in seconds)
     overlap = 0.2      # overlap between segments (percentage between 0 and 1)
@@ -661,10 +664,10 @@ if __name__ == "__main__":
     print(dataset.aug_config)
 
     ##
-    from lung_ultrasound.tools import cfg_train
-    import h5py
-    show_hdf5_video(main_path=cfg_train.main_path, dataset=cfg_train.dataset, 
-                    patient='ED7_uninformative', zone='z1', fps=30)
+    # from lung_ultrasound.tools import cfg_train
+    # import h5py
+    # show_hdf5_video(main_path=cfg_train.main_path, dataset=cfg_train.dataset, 
+    #                 patient='ED7_uninformative', zone='z1', fps=30)
 
     for img, label, subject, zone in dataset:
         # plot first last and middle frame
