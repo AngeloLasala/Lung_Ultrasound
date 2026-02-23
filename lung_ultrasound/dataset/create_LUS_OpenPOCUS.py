@@ -50,8 +50,8 @@ def create_and_fill_zone_folder(video_folder, output_folder, subject_id, zones):
 
             ## read and resize the image to 512x512
             image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
-            size = (128, 128)
-            image = cv2.resize(image, size)
+            # size = (128, 128)
+            # image = cv2.resize(image, size)
 
             # save image to the corresponding zone folder
             # cv2.imwrite(os.path.join(subject_path, zone_i, i), image)
