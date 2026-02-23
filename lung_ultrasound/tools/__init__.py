@@ -55,7 +55,7 @@ class cfg_train:
     eval_freq = 1                  # evaluate every n epochs
     verbose = True
     ema_decay = 0.999              # value for ema decay for model saving
-    early_stopping_patience = 150  # epoch for patience
+    early_stopping_patience = 60   # epoch for patience
     min_delta = 1e-4               # for stability in early stopping
     monitor_metric = 'weighted_f1'    
 
