@@ -8,6 +8,7 @@ import cv2
 import tqdm
 import json
 import h5py
+import tqdm
 
 def main(args):
     """
@@ -30,12 +31,12 @@ def main(args):
     os.makedirs(frames_folder, exist_ok=True)
 
     for sub in subjects_list:
-        sub_path = os.path.join(frames_folder, sub)
+        sub_path = os.path.join(frames_folder, sub, 'images')
         os.makedirs(sub_path, exist_ok=True)
 
     ## for each patient read video for each zones
     n = 0
-    for sub in subjects_list:
+    for sub in tqdm.tqdm(subjects_list):
         sub_videos_path = os.path.join(args.main_path, args.dataset, sub)
 
         labels_dict = os.path.join(sub_videos_path, 'labels.json')
@@ -50,11 +51,12 @@ def main(args):
                     video_frames = video_df[:]
 
                 sampling_frame = video_frames[::args.sampling_step]    
+                # print(sampling_frame.shape)
                 n += sampling_frame.shape[0]
 
                 for idx, frame in enumerate(sampling_frame):
                     filename = f"{sub}_{zone}_frame_{idx:04d}.png"
-                    path = os.path.join(frames_folder, sub, filename)
+                    path = os.path.join(frames_folder, sub, 'images', filename)
                     cv2.imwrite(path, frame)
 
     print(f'Total frames: {n}')  
