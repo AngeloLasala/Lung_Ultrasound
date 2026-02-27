@@ -211,39 +211,42 @@ def main(args):
         for ann in annotations:
             n += 1
             image_name = ann['image'].split('-')[-1]
-            segmentation_rle = ann['tag']
-
+            
             # read image with pillow
             image = Image.open(os.path.join(images_path, image_name))
             image = np.array(image)
             h, w = image.shape[0], image.shape[1]
 
-            # initial mask
+            # initial mask (vuote di default)
             pleura_mask = np.zeros((h, w), dtype=np.uint8)
             ribs_shadow_mask = np.zeros((h, w), dtype=np.uint8)
 
-            ## loop over each segmentation mask in annotation
-            for mask_ann in segmentation_rle:
-                class_name = mask_ann['brushlabels'][0]
-                original_w = mask_ann['original_width']
-                original_h = mask_ann['original_height']
-                rle = mask_ann['rle']
-                
-                if class_name == 'Pleura':
-                    pleura_mask = rle_to_mask(rle, original_w, original_h)
-                    pleura_mask = fill_mask_regions(pleura_mask)
-                    pleura_centroids = get_centroids(pleura_mask)
-                    for c in pleura_centroids:
-                        pleuras_list.append(c)
-                    
-                if class_name == 'Coste':
-                    ribs_shadow_mask = rle_to_mask(rle, original_w, original_h)
-                    ribs_shadow_mask = fill_mask_regions(ribs_shadow_mask)
-                    ribs_shadow_mask_centroids = get_centroids(ribs_shadow_mask)
-                    for c in ribs_shadow_mask_centroids:
-                        ribs_shadow_list.append(c)
-                    
+            # check esistenza 'tag'
+            if 'tag' in ann and ann['tag']:
+                segmentation_rle = ann['tag']
 
+                ## loop over each segmentation mask in annotation
+                for mask_ann in segmentation_rle:
+                    class_name = mask_ann['brushlabels'][0]
+                    original_w = mask_ann['original_width']
+                    original_h = mask_ann['original_height']
+                    rle = mask_ann['rle']
+                    
+                    if class_name == 'Pleura':
+                        pleura_mask = rle_to_mask(rle, original_w, original_h)
+                        pleura_mask = fill_mask_regions(pleura_mask)
+                        pleura_centroids = get_centroids(pleura_mask)
+                        for c in pleura_centroids:
+                            pleuras_list.append(c)
+                        
+                    if class_name == 'Coste':
+                        ribs_shadow_mask = rle_to_mask(rle, original_w, original_h)
+                        ribs_shadow_mask = fill_mask_regions(ribs_shadow_mask)
+                        ribs_shadow_mask_centroids = get_centroids(ribs_shadow_mask)
+                        for c in ribs_shadow_mask_centroids:
+                            ribs_shadow_list.append(c)
+
+            # stack (anche se sono rimaste vuote)
             labels_mask = np.stack((pleura_mask, ribs_shadow_mask), axis=0)
             saving_path = os.path.join(labels_path, f"{image_name.split('.')[0]}.npy")
             np.save(saving_path, labels_mask)
@@ -270,8 +273,8 @@ def main(args):
                 plt.scatter(c[1], c[0], c='yellow')
             plt.title("Ribs Shadow Mask")
             plt.axis('off')
-            # plt.tight_layout()
-            # plt.show()
+            plt.tight_layout()
+            plt.show()
             ##################################################
 
         print(f'Annotated images: {n}')
