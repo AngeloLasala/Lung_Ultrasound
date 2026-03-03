@@ -248,8 +248,17 @@ def main(args):
 
             # stack (anche se sono rimaste vuote)
             labels_mask = np.stack((pleura_mask, ribs_shadow_mask), axis=0)
+
+            # converting in a single vecto 0=background, 1=pleura , 2=ribs' shadow
+            pleura_mask = labels_mask[0]
+            ribs_shadow_mask = labels_mask[1]
+
+            single_channel_mask = np.zeros((pleura_mask.shape[0], pleura_mask.shape[1]), dtype=np.uint8)
+            single_channel_mask[pleura_mask > 0] = 1
+            single_channel_mask[ribs_shadow_mask > 0] = 2
+
             saving_path = os.path.join(labels_path, f"{image_name.split('.')[0]}.npy")
-            np.save(saving_path, labels_mask)
+            np.save(saving_path, single_channel_mask)
 
             ##################################################
             # plt.figure(figsize=(12, 4))
@@ -257,7 +266,7 @@ def main(args):
             # plt.subplot(1, 3, 1)
             # plt.imshow(image, cmap='gray')
             # plt.title("Original Image")
-            # plt.imshow(ribs_shadow_mask, cmap='Blues', alpha=0.5)
+            # plt.imshow(single_channel_mask, cmap='hot', alpha=0.3)
             # plt.axis('off')
 
             # plt.subplot(1, 3, 2)
@@ -276,7 +285,7 @@ def main(args):
             # plt.axis('off')
             # plt.tight_layout()
             # plt.show()
-            ##################################################
+            #################################################
 
         print(f'Annotated images: {n}')
         print(f'Pleuras: {len(pleuras_list)}')
