@@ -21,10 +21,10 @@ import logging
 import json
 import numpy as np
 
-from lung_ultrasound.dataset.dataset_vital import DatasetVitalPOCUS, AugmentationConfig
-from lung_ultrasound.losses.cce import WeightedCrossEntropyLoss, compute_class_weights
-from lung_ultrasound.tools import cfg_train, load_model
-from lung_ultrasound.tools.helper import EMA, EarlyStopping, run_validation
+from lung_ultrasound.score_model.dataset.dataset_vital import DatasetVitalPOCUS, AugmentationConfig
+from lung_ultrasound.score_model.losses.cce import WeightedCrossEntropyLoss, compute_class_weights
+from lung_ultrasound.score_model.tools import cfg_train, load_model
+from lung_ultrasound.score_model.tools.helper import EMA, EarlyStopping, run_validation
 
 def main(args):
     """

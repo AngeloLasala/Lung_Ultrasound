@@ -11,7 +11,7 @@ import numpy as np
 from PIL import Image
 import matplotlib.pyplot as plt
 
-import lung_ultrasound.models.vital_models as classifiers
+import lung_ultrasound.score_model.models.vital_models as classifiers
 import lung_ultrasound.utils as utils
 
 

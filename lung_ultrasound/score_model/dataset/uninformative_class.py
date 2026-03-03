@@ -22,8 +22,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import h5py
 
-from lung_ultrasound.dataset.dataset_vital import DatasetVitalPOCUS, AugmentationConfig
-from lung_ultrasound.tools import cfg_train
+from lung_ultrasound.score_model.dataset.dataset_vital import DatasetVitalPOCUS, AugmentationConfig
+from lung_ultrasound.score_model.tools import cfg_train
 
 def get_reduced_json(original_splitting, percentage, seed=42):
     """

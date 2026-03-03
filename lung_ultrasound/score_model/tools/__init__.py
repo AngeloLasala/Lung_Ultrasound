@@ -1,7 +1,7 @@
 """
 Collection of configuration fro train test and val
 """
-import lung_ultrasound.models.vital_models as classifiers
+import lung_ultrasound.score_model.models.vital_models as classifiers
 import os
 import json
 import torch

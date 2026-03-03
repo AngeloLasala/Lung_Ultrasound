@@ -13,8 +13,8 @@ import numpy as np
 from PIL import Image
 import matplotlib.pyplot as plt
 
-import lung_ultrasound.models.vital_models as classifiers
-from lung_ultrasound.dataset.dataset_vital import DatasetVital
+import lung_ultrasound.score_model.models.vital_models as classifiers
+from lung_ultrasound.score_model.dataset.dataset_vital import DatasetVital
 from torch.utils.data import DataLoader
 import lung_ultrasound.utils as utils
 from sklearn.metrics import accuracy_score, f1_score, confusion_matrix
