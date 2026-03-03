@@ -252,29 +252,30 @@ def main(args):
             np.save(saving_path, labels_mask)
 
             ##################################################
-            plt.figure(figsize=(12, 4))
+            # plt.figure(figsize=(12, 4))
 
-            plt.subplot(1, 3, 1)
-            plt.imshow(image, cmap='gray')
-            plt.title("Original Image")
-            plt.axis('off')
+            # plt.subplot(1, 3, 1)
+            # plt.imshow(image, cmap='gray')
+            # plt.title("Original Image")
+            # plt.imshow(ribs_shadow_mask, cmap='Blues', alpha=0.5)
+            # plt.axis('off')
 
-            plt.subplot(1, 3, 2)
-            plt.imshow(pleura_mask, cmap='Reds')
-            pleura_centroids = get_centroids(pleura_mask)
-            for c in pleura_centroids:
-                plt.scatter(c[1], c[0], c='orange')
-            plt.axis('off')
+            # plt.subplot(1, 3, 2)
+            # plt.imshow(pleura_mask, cmap='Reds')
+            # pleura_centroids = get_centroids(pleura_mask)
+            # for c in pleura_centroids:
+            #     plt.scatter(c[1], c[0], c='orange')
+            # plt.axis('off')
 
-            plt.subplot(1, 3, 3)
-            plt.imshow(ribs_shadow_mask, cmap='Blues')
-            ribs_shadow_mask_centroids = get_centroids(ribs_shadow_mask)
-            for c in ribs_shadow_mask_centroids:
-                plt.scatter(c[1], c[0], c='yellow')
-            plt.title("Ribs Shadow Mask")
-            plt.axis('off')
-            plt.tight_layout()
-            plt.show()
+            # plt.subplot(1, 3, 3)
+            # plt.imshow(ribs_shadow_mask, cmap='Blues')
+            # ribs_shadow_mask_centroids = get_centroids(ribs_shadow_mask)
+            # for c in ribs_shadow_mask_centroids:
+            #     plt.scatter(c[1], c[0], c='yellow')
+            # plt.title("Ribs Shadow Mask")
+            # plt.axis('off')
+            # plt.tight_layout()
+            # plt.show()
             ##################################################
 
         print(f'Annotated images: {n}')
