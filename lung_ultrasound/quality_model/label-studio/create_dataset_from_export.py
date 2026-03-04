@@ -257,7 +257,12 @@ def main(args):
             single_channel_mask[pleura_mask > 0] = 1
             single_channel_mask[ribs_shadow_mask > 0] = 2
 
-            saving_path = os.path.join(labels_path, f"{image_name.split('.')[0]}.npy")
+            if len(image_name.split('.')) == 2:
+                saving_path = os.path.join(labels_path, f"{image_name.split('.')[0]}.npy")
+            else:
+                name = image_name.split('.')[0] + '.' + image_name.split('.')[1]
+                saving_path = os.path.join(labels_path, f"{name}.npy")
+
             np.save(saving_path, single_channel_mask)
 
             ##################################################

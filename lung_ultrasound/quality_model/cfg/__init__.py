@@ -30,9 +30,10 @@ class cfg:
     p_distor = 0.0
     color_jitter_params = None
     p_random_affine = 0
-    long_mask = False
+    long_mask = True
 
     ## Training parameters    ##########################################################
+    model_name = 'UNet'
     workers = 1                         # number of data loading workers (default: 8)
     epochs = 200                        # number of total epochs to run (default: 400)
     batch_size = 8                      # batch size (default: 4)

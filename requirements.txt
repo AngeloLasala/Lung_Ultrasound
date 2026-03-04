@@ -1,6 +1,8 @@
+hausdorff
 h5py
 einops
 matplotlib
+numba
 numpy
 opencv_python
 pandas
