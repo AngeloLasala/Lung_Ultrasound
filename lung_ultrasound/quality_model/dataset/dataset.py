@@ -123,7 +123,7 @@ class JointTransform2D:
 
         # transforming to PIL image
         image, mask = F.to_pil_image(image), F.to_pil_image(mask)
-
+    
         # random crop
         if self.crop:
             i, j, h, w = T.RandomCrop.get_params(image, self.crop)
@@ -176,21 +176,20 @@ class JointTransform2D:
         if np.random.rand() < self.p_random_affine:
             affine_params = T.RandomAffine(180).get_params((-90, 90), (1, 1), (2, 2), (-45, 45), self.crop)
             image, mask = F.affine(image, *affine_params), F.affine(mask, *affine_params)
-
+  
         # transforming to tensor
         image, mask = F.resize(image, (self.img_size, self.img_size), InterpolationMode.BILINEAR), F.resize(mask, (self.ori_size, self.ori_size), InterpolationMode.NEAREST)
         low_mask = F.resize(mask, (self.low_img_size, self.low_img_size), InterpolationMode.NEAREST)
     
         image = F.to_tensor(image)
 
-
         if not self.long_mask:
-            mask = F.to_tensor(mask)
-            low_mask = F.to_tensor(low_mask)
+            mask = F.to_tensor(mask) * 255
+            low_mask = F.to_tensor(low_mask) * 255
         else:
-            mask = to_long_tensor(mask)
-            low_mask = to_long_tensor(low_mask)
-
+            mask = to_long_tensor(mask) * 255
+            low_mask = to_long_tensor(low_mask) * 255
+        
         return image, mask, low_mask
 
 class LungDataset(Dataset):
@@ -335,13 +334,13 @@ if __name__ == '__main__':
     transform = JointTransform2D(img_size=encoder_input_size, low_img_size=low_image_size, 
                                 ori_size=cfg.img_size, 
                                 crop=crop, 
-                                p_flip=p_flip, 
-                                p_rota=p_rota, 
-                                p_scale=p_scale,
-                                p_gaussn=p_gaussn,
-                                p_contr=p_contr, 
-                                p_gama=p_gama,
-                                p_distor=p_distor,
+                                p_flip=0, 
+                                p_rota=0, 
+                                p_scale=0,
+                                p_gaussn=0,
+                                p_contr=0, 
+                                p_gama=0,
+                                p_distor=0,
                                 color_jitter_params = color_jitter_params,
                                 long_mask=long_mask)                         
 
@@ -353,10 +352,38 @@ if __name__ == '__main__':
                           joint_transform = transform, 
                           one_hot_mask = False)
 
+    ## compute general information - size of 0 - 1 - 2
+    ratios_list = []
+
+    for i in range(len(dataset)):
+        data = dataset[i]
+        mask = data['label'].cpu().numpy().astype(np.int64)  # tensore -> numpy intero
+
+        counts = np.bincount(mask.flatten(), minlength=3)  # conta pixel per classe 0,1,2
+        total_pixels = mask.size  # attenzione: attributo, non funzione
+        ratios = counts / total_pixels
+        ratios_list.append(ratios)
+
+    ratios_array = np.array(ratios_list)
+
+    for cls in range(3):
+        cls_ratios = ratios_array[:, cls]
+        mean_val = np.mean(cls_ratios)
+        median_val = np.median(cls_ratios)
+        print(f"Classe {cls}: media={mean_val:.3f}, mediana={median_val:.3f}")
+
+        plt.figure()
+        plt.hist(cls_ratios, bins=20, color=['skyblue','lightgreen','salmon'][cls])
+        plt.title(f"Istogramma ratio classe {cls}")
+        plt.xlabel("Ratio")
+        plt.ylabel("Numero di immagini")
+        plt.grid(True)
+        plt.show()
+    
     idx = 10
     for i in range(10):
         data = dataset[idx]
-     
+
         fig, axes = plt.subplots(1, 2, figsize=(10, 5), num=i)
         axes[0].imshow(data['image'].permute(1,2,0).numpy(), cmap='gray')
         axes[0].set_title("Img")
