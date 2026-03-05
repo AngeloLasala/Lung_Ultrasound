@@ -82,7 +82,7 @@ def eval_mask_slice(valloader, model, criterion, cfg):
     mean_hdis = np.mean(hd_mean[1:])
 
     if cfg.mode == "train":
-        return dices, mean_dice, mean_hdis, val_losses
+        return dices, mean_dice, mean_hdis, val_losses, dice_mean
     else:
         dice_mean *= 100
         dices_std *= 100

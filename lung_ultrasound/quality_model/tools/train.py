@@ -9,6 +9,7 @@ from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data import DataLoader
 from torch import nn
 import torch.optim as optim
+import torchvision
 
 import time
 from tqdm import tqdm
@@ -182,16 +183,14 @@ def main(args):
             progress_bar.set_postfix({"loss": train_loss.detach().item()})
 
         if args.keep_log:
-            TensorWriter.add_scalar('train_loss', train_losses / (batch_idx + 1), epoch)
+            # TensorWriter.add_scalar('loss/train', train_losses / (batch_idx + 1), epoch)
             loss_log[epoch] = train_losses / (batch_idx + 1)
 
         ## evaluation
         if epoch % cfg.eval_freq == 0:
             model.eval()
 
-            dices, mean_dice, _, val_losses = eval_mask_slice(valloader, model, criterion=criterion, cfg=cfg)
-            # logging.info(f' epoch [{epoch+1}/{opt.epochs}], val loss:{val_losses:.4f}')
-            # logging.info(f' epoch [{epoch+1}/{opt.epochs}], val dice:{mean_dice:.4f}')
+            dices, mean_dice, _, val_losses, dice_per_class = eval_mask_slice(valloader, model, criterion=criterion, cfg=cfg)
             progress_bar.set_postfix({"loss": train_losses / (batch_idx + 1), 
                                       'val loss': val_losses,
                                       'val dice': mean_dice,
@@ -199,12 +198,28 @@ def main(args):
 
             if args.keep_log:
                 ## logger scalar
-                TensorWriter.add_scalar('val_loss', val_losses, epoch)
+                TensorWriter.add_scalars('loss', {'train': train_losses / (batch_idx + 1), 'val': val_losses}, epoch)
+                                                    
                 TensorWriter.add_scalar('dices', mean_dice, epoch)
                 dice_log[epoch] = mean_dice
 
-                #logger images
-                # to do...
+                # logger images
+                rand_batch = random.choice(list(valloader))
+                imgs_val = rand_batch['image'].to(dtype=torch.float32, device=device)
+                masks_val = rand_batch['label'].to(device=device)
+
+                rand_idx = random.randint(0, imgs_val.shape[0] - 1)
+                img_sample   = imgs_val[rand_idx]    # (C, H, W)
+                mask_sample  = masks_val[rand_idx]   # (C, H, W) or (H, W)
+                
+                with torch.no_grad():
+                    pred_logits = model(imgs_val[rand_idx].unsqueeze(0))  # (1, num_classes, H, W)
+                pred_sample = torch.argmax(pred_logits, dim=1).squeeze(0)  # (H, W) class indices
+
+                TensorWriter.add_image('val/image', img_sample[:1], epoch)
+                TensorWriter.add_image('val/label', mask_sample.unsqueeze(0), epoch)
+                TensorWriter.add_image('val/predicted', pred_sample.unsqueeze(0), epoch)
+
 
                 if mean_dice > best_dice:
                     best_dice = mean_dice
