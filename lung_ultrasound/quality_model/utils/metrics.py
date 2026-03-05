@@ -11,10 +11,12 @@ def dice_coefficient(pred, gt, smooth=1e-5):
     dice = 2TP/(FP + 2TP + FN)
     """
     N = gt.shape[0]
+    
     pred[pred >= 1] = 1
     gt[gt >= 1] = 1
     pred_flat = pred.reshape(N, -1)
     gt_flat = gt.reshape(N, -1)
+
     # if (pred.sum() + gt.sum()) == 0:
     #     return 1
     intersection = (pred_flat * gt_flat).sum(1)

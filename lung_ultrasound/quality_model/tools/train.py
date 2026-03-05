@@ -22,7 +22,7 @@ import numpy as np
 from lung_ultrasound.quality_model.cfg import cfg
 from lung_ultrasound.quality_model.models.unet import UNet
 from lung_ultrasound.quality_model.dataset.dataset import JointTransform2D, LungDataset
-from lung_ultrasound.quality_model.utils.evaluation import eval_mask_slice
+from lung_ultrasound.quality_model.utils.evaluation import eval_mask
 # from preoperativeSAM.utils.evaluation import get_eval
 
 
@@ -190,7 +190,7 @@ def main(args):
         if epoch % cfg.eval_freq == 0:
             model.eval()
 
-            dices, mean_dice, _, val_losses, dice_per_class = eval_mask_slice(valloader, model, criterion=criterion, cfg=cfg)
+            dices, mean_dice, _, val_losses, dice_per_class = eval_mask(valloader, model, criterion=criterion, cfg=cfg)
             progress_bar.set_postfix({"loss": train_losses / (batch_idx + 1), 
                                       'val loss': val_losses,
                                       'val dice': mean_dice,
