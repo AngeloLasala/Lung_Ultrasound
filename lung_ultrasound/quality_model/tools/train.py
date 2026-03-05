@@ -148,7 +148,7 @@ def main(args):
     optimizer = optim.Adam(model.parameters(), lr=learning_rate, betas=(0.9, 0.999), eps=1e-08, weight_decay=0, amsgrad=False)
    
     ## loss function
-    class_weights = torch.tensor([1.0]*cfg.num_classes, device=device)
+    class_weights = torch.tensor(cfg.class_weights, device=device)
     logging.info(f'  class weights: {class_weights}')
     criterion = nn.CrossEntropyLoss(weight=class_weights)
     logging.info(' Done!\n')
@@ -217,8 +217,8 @@ def main(args):
                 pred_sample = torch.argmax(pred_logits, dim=1).squeeze(0)  # (H, W) class indices
 
                 TensorWriter.add_image('val/image', img_sample[:1], epoch)
-                TensorWriter.add_image('val/label', mask_sample.unsqueeze(0), epoch)
-                TensorWriter.add_image('val/predicted', pred_sample.unsqueeze(0), epoch)
+                TensorWriter.add_image('val/label', mask_sample.unsqueeze(0) * 100, epoch)
+                TensorWriter.add_image('val/predicted', pred_sample.unsqueeze(0) * 100, epoch)
 
 
                 if mean_dice > best_dice:

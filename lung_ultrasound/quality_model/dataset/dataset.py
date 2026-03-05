@@ -355,30 +355,30 @@ if __name__ == '__main__':
     ## compute general information - size of 0 - 1 - 2
     ratios_list = []
 
-    # for i in range(len(dataset)):
-    #     data = dataset[i]
-    #     mask = data['label'].cpu().numpy().astype(np.int64)  # tensore -> numpy intero
+    for i in range(len(dataset)):
+        data = dataset[i]
+        mask = data['label'].cpu().numpy().astype(np.int64)  # tensore -> numpy intero
 
-    #     counts = np.bincount(mask.flatten(), minlength=3)  # conta pixel per classe 0,1,2
-    #     total_pixels = mask.size  # attenzione: attributo, non funzione
-    #     ratios = counts / total_pixels
-    #     ratios_list.append(ratios)
+        counts = np.bincount(mask.flatten(), minlength=3)  # conta pixel per classe 0,1,2
+        total_pixels = mask.size  # attenzione: attributo, non funzione
+        ratios = counts / total_pixels
+        ratios_list.append(ratios)
 
-    # ratios_array = np.array(ratios_list)
+    ratios_array = np.array(ratios_list)
 
-    # for cls in range(3):
-    #     cls_ratios = ratios_array[:, cls]
-    #     mean_val = np.mean(cls_ratios)
-    #     median_val = np.median(cls_ratios)
-    #     print(f"Classe {cls}: media={mean_val:.3f}, mediana={median_val:.3f}")
+    for cls in range(3):
+        cls_ratios = ratios_array[:, cls]
+        mean_val = np.mean(cls_ratios)
+        median_val = np.median(cls_ratios)
+        print(f"Classe {cls}: media={mean_val:.3f}, mediana={median_val:.3f}")
 
-    #     plt.figure()
-    #     plt.hist(cls_ratios, bins=20, color=['skyblue','lightgreen','salmon'][cls])
-    #     plt.title(f"Istogramma ratio classe {cls}")
-    #     plt.xlabel("Ratio")
-    #     plt.ylabel("Numero di immagini")
-    #     plt.grid(True)
-    #     plt.show()
+        plt.figure()
+        plt.hist(cls_ratios, bins=20, color=['skyblue','lightgreen','salmon'][cls])
+        plt.title(f"Istogramma ratio classe {cls}")
+        plt.xlabel("Ratio")
+        plt.ylabel("Numero di immagini")
+        plt.grid(True)
+        plt.show()
     
     idx = 10
     for i in range(10):

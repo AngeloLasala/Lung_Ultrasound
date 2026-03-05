@@ -52,5 +52,6 @@ class cfg:
     cuda = "on"                         # switch on/off cuda option (default: off)
     gray = "yes"                        # the type of input image
     eval_mode = "mask_slice"            # the mode when evaluate the model, slice level or patient level
+    class_weights = [1., 300., 11.]     # class weight for unbalances segmentation mask - [1.]*num_classes for deactivating class weights
     pre_trained = False
     mode = "train"
