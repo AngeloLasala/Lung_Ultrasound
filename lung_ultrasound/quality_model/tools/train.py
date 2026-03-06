@@ -21,6 +21,7 @@ import numpy as np
 
 from lung_ultrasound.quality_model.cfg import cfg
 from lung_ultrasound.quality_model.models.unet import UNet
+from lung_ultrasound.quality_model.models.losses import CombinedCEDiceLoss
 from lung_ultrasound.quality_model.dataset.dataset import JointTransform2D, LungDataset
 from lung_ultrasound.quality_model.utils.evaluation import eval_mask
 # from preoperativeSAM.utils.evaluation import get_eval
@@ -141,6 +142,7 @@ def main(args):
     logging.info(f'  epochs: {epochs}')
     logging.info(f'  batch_size: {batch_size}')
     logging.info(f'  learning_rate: {learning_rate}')
+    logging.info(f'  Loss = {cfg.w_ce} * L_ce + {cfg.w_dice} * L_dice')
     logging.info(f'  size: {cfg.size}')
     logging.info(f'  device: {device}')
     
@@ -150,7 +152,8 @@ def main(args):
     ## loss function
     class_weights = torch.tensor(cfg.class_weights, device=device)
     logging.info(f'  class weights: {class_weights}')
-    criterion = nn.CrossEntropyLoss(weight=class_weights)
+    criterion = CombinedCEDiceLoss(weight=class_weights, w_ce=cfg.w_ce, w_dice=cfg.w_dice)
+
     logging.info(' Done!\n')
  
     ## Model training ################################################################################################
@@ -172,7 +175,7 @@ def main(args):
             ## forward
             pred = model(imgs)
             train_loss = criterion(pred, masks)
-            
+
             ## backward
             optimizer.zero_grad()
             train_loss.backward()
@@ -199,7 +202,7 @@ def main(args):
             if args.keep_log:
                 ## logger scalar
                 TensorWriter.add_scalars('loss', {'train': train_losses / (batch_idx + 1), 'val': val_losses}, epoch)
-                TensorWriter.add_scalars('dice', {'dice': mean_dice, 'Pleura_dice': dice_per_class[1], 'Ribs_dice': dice_per_class[2]}, epoch)                      
+                TensorWriter.add_scalars('dice', {' ': mean_dice, 'Pleura': dice_per_class[1], 'Ribs': dice_per_class[2]}, epoch)                      
                 dice_log[epoch] = mean_dice
 
                 # logger images

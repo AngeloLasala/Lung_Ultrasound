@@ -5,10 +5,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-# ─────────────────────────────────────────────────────────────────────────── #
-#  Individual loss functions (binary, kept for reference / other use cases)   #
-# ─────────────────────────────────────────────────────────────────────────── #
-
+##  Individual loss functions (binary, kept for reference / other use cases)   
 def bce_loss(logits, targets, pos_weight=1.0):
     pw = torch.tensor([pos_weight], device=logits.device, dtype=logits.dtype)
     return F.binary_cross_entropy_with_logits(logits, targets.float(), pos_weight=pw)
@@ -22,11 +19,7 @@ def focal_loss(logits, targets, alpha=0.25, gamma=2.0):
     alpha_t = alpha * targets + (1.0 - alpha) * (1.0 - targets)
     return (alpha_t * (1.0 - p_t) ** gamma * bce).mean()
 
-
-# ─────────────────────────────────────────────────────────────────────────── #
-#  Multiclass Dice loss                                                        #
-# ─────────────────────────────────────────────────────────────────────────── #
-
+##  Multiclass Dice loss                    
 def multiclass_dice_loss(logits, targets, smooth=1.0, ignore_index=-1):
     """
     Soft multiclass Dice Loss averaged over all classes (and the batch).
@@ -62,10 +55,7 @@ def multiclass_dice_loss(logits, targets, smooth=1.0, ignore_index=-1):
     return 1.0 - dice_per_class.mean()
 
 
-# ─────────────────────────────────────────────────────────────────────────── #
-#  CombinedCEDiceLoss — drop-in for nn.CrossEntropyLoss in train.py           #
-# ─────────────────────────────────────────────────────────────────────────── #
-
+##  CombinedCEDiceLoss — drop-in for nn.CrossEntropyLoss in train.py      
 class CombinedCEDiceLoss(nn.Module):
     """
     Cross-Entropy + soft multiclass Dice Loss.
@@ -88,14 +78,14 @@ class CombinedCEDiceLoss(nn.Module):
         ignore_index  (int)         : class to skip in Dice.  -1 = disabled.
     """
 
-    def __init__(self, class_weights=None, w_ce=1.0, w_dice=1.0,
+    def __init__(self, weight=None, w_ce=1.0, w_dice=1.0,
                  smooth=1.0, ignore_index=-1):
         super().__init__()
         self.w_ce         = w_ce
         self.w_dice       = w_dice
         self.smooth       = smooth
         self.ignore_index = ignore_index
-        self.ce           = nn.CrossEntropyLoss(weight=class_weights)
+        self.ce           = nn.CrossEntropyLoss(weight=weight)
 
     def forward(self, logits, targets):
         """
@@ -109,11 +99,7 @@ class CombinedCEDiceLoss(nn.Module):
         l_dice = multiclass_dice_loss(logits, targets, self.smooth, self.ignore_index)
         return self.w_ce * l_ce + self.w_dice * l_dice
 
-
-# ─────────────────────────────────────────────────────────────────────────── #
-#  Legacy binary CombinedLoss (BCE + Dice + Focal)                            #
-# ─────────────────────────────────────────────────────────────────────────── #
-
+#  Legacy binary CombinedLoss (BCE + Dice + Focal)                
 class CombinedLoss(nn.Module):
     """
     Binary BCE + Dice + Focal for single-class (foreground/background) tasks.
@@ -143,10 +129,10 @@ if __name__ == "__main__":
     B, C, H, W = 2, 3, 256, 256
     logits  = torch.randn(B, C, H, W)
     targets = torch.randint(0, C, (B, H, W))
+    print(logits.shape, targets.shape)
+    
     weights = torch.tensor([0.5, 1.5, 2.0])
 
     criterion = CombinedCEDiceLoss(class_weights=weights, w_ce=1.0, w_dice=1.0)
     loss = criterion(logits, targets)
     print(f"CE+Dice loss : {loss.item():.4f}")
-    loss.backward()
-    print("Backward pass OK")
