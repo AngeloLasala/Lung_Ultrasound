@@ -1,7 +1,6 @@
 """
 Train model for LUS semantic segmentation
 """
-
 import os
 import argparse
 import torch
