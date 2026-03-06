@@ -30,7 +30,6 @@ def eval_mask(valloader, model, criterion, cfg):
     if isinstance(cfg, dict):
         from types import SimpleNamespace
         cfg = SimpleNamespace(**cfg)
-    print('ok')
     model.eval()
 
     n_samples = cfg.batch_size * len(valloader)   # upper bound
@@ -81,7 +80,7 @@ def eval_mask(valloader, model, criterion, cfg):
 
                 hds[idx, c] = hausdorff_distance(pred_mask[0], gt_mask[0], distance="manhattan")
 
-                # import matplotlib.pyplot as plt
+                import matplotlib.pyplot as plt
                 # plt.figure()
                 # plt.title(f'pred {c}')
                 # plt.imshow(pred_mask[0])

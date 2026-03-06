@@ -199,8 +199,7 @@ def main(args):
             if args.keep_log:
                 ## logger scalar
                 TensorWriter.add_scalars('loss', {'train': train_losses / (batch_idx + 1), 'val': val_losses}, epoch)
-                                                    
-                TensorWriter.add_scalar('dices', mean_dice, epoch)
+                TensorWriter.add_scalars('dice', {'dice': mean_dice, 'Pleura_dice': dice_per_class[1], 'Ribs_dice': dice_per_class[2]}, epoch)                      
                 dice_log[epoch] = mean_dice
 
                 # logger images
