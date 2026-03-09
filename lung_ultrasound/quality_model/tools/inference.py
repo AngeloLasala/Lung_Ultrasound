@@ -15,12 +15,15 @@ import random
 import json
 import numpy as np
 import h5py
+import matplotlib.pyplot as plt
+import cv2
 
 from lung_ultrasound.quality_model.cfg import cfg
 from lung_ultrasound.quality_model.models.unet import UNet
 from lung_ultrasound.quality_model.dataset.dataset import JointTransform2D, LungDataset
 from lung_ultrasound.quality_model.utils.evaluation import eval_mask
-from lung_ultrasound.quality_model.utils.visualization import visualize_inference, make_gif
+from lung_ultrasound.quality_model.utils.visualization import visualize_inference, make_gif, plot_centroids_over_time
+
 class PatientClass(Dataset):
     """
     Costum dataset class that return each frames of a videos in a readible dataset for inference
@@ -97,17 +100,55 @@ class PatientClass(Dataset):
 
         for zone in self.zones.keys():
             if subject_labels[zone] != 'Nan':
-                video_frames_path = os.path.join(self.subject_path, self.zones[zone], f"{self.zones[zone]}.h5")
+                # --- Try .h5 first, then .mp4 ---
+                h5_path  = os.path.join(self.subject_path, self.zones[zone], f"{self.zones[zone]}.h5")
+                mp4_path = os.path.join(self.subject_path, self.zones[zone], f"{self.zones[zone]}.mp4")
 
-                with h5py.File(video_frames_path, "r") as f:
-                    video_df = f["images"]
-                    video_frames = video_df[:]  # (F, H, W)
+                if os.path.exists(h5_path):
+                    with h5py.File(h5_path, "r") as f:
+                        video_frames = f["images"][:]  # (F, H, W)
+
+                elif os.path.exists(mp4_path):
+                    video_frames = self._load_mp4(mp4_path)  # (F, H, W)
+
+                else:
+                    print(f"[WARNING] No video file found for zone '{zone}' — skipping.")
+                    continue
                 
                 image_label_dict['videos'].append(video_frames)
                 image_label_dict['labels'].append(subject_labels[zone])
                 image_label_dict['zones'].append(zone)
                 
         return image_label_dict
+    
+    def _load_mp4(self, mp4_path):
+        """
+        Load an mp4 video and convert frames to grayscale numpy array (F, H, W).
+        
+        Args:
+            mp4_path: full path to the .mp4 file
+        
+        Returns:
+            numpy array of shape (F, H, W) with uint8 values
+        """
+        cap = cv2.VideoCapture(mp4_path)
+        if not cap.isOpened():
+            raise IOError(f"Cannot open video file: {mp4_path}")
+
+        frames = []
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                break
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)  # (H, W)
+            frames.append(gray)
+
+        cap.release()
+
+        if len(frames) == 0:
+            raise ValueError(f"No frames extracted from: {mp4_path}")
+
+        return np.stack(frames, axis=0)  # (F, H, W)
 
 def main(args):
     """
@@ -172,7 +213,13 @@ def main(args):
         video = video.to(device)
 
         total_frames = video.shape[0]
-        all_frames_dict = {"frame": [], "frame_pleura": [], "frame_ribs": []}
+        all_frames_dict = {
+            "frame": [],
+            "frame_pleura": [],
+            "frame_ribs": [],
+            "centroid_pleura": [],
+            "centroid_ribs": [],
+        }
 
         # Processa a batch di ff frames
         for start in range(0, total_frames, ff):
@@ -183,7 +230,6 @@ def main(args):
             print(f'Batch [{start}:{end}] - start inference...')
             pred = model(batch)
             time_stop = time.time()
-            actual_ff = end - start
             print(f'inference time: {time_stop - time_start:.4f} s\n')
 
             batch_dict = visualize_inference(batch, pred)
@@ -195,10 +241,13 @@ def main(args):
         # Crea la GIF finale per questa zona
         gif_name = f"{args.subject}_{zone}_label_{label}.gif"
         gif_path = os.path.join(subject_folder, gif_name)
-        make_gif(all_frames_dict, output_path=gif_path, fps=30)
-    
-    ## Load model
+        make_gif(all_frames_dict, output_path=gif_path, fps=10)
 
+        # Salva il plot dei centroidi per questa zona
+        plot_name = f"{args.subject}_{zone}_label_{label}_centroids.png"
+        fig = plot_centroids_over_time(all_frames_dict, fps=30, save_path=subject_folder, filename=plot_name)
+        plt.close(fig)
+    
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Train UNet model for semantic segmentation')
     parser.add_argument('--model_path', type=str, help='Path to trained model')

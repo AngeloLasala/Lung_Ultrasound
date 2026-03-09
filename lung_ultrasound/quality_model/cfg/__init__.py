@@ -13,7 +13,7 @@ class cfg:
 
     ## dataset configuratios
     size = 256
-    fold_cv = 'fold_1'        # cross-validation fold 
+    fold_cv = 'fold_5'        # cross-validation fold 
     splitting = 'splitting_10_percent.json'
 
     ## augumentation configuration (see dataset JointTrasformation for default value)
