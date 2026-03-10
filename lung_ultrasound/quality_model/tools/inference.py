@@ -100,9 +100,12 @@ class PatientClass(Dataset):
 
         for zone in self.zones.keys():
             if subject_labels[zone] != 'Nan':
-                # --- Try .h5 first, then .mp4 ---
+                # --- Try .h5 first, then .mp4, then .avi ---
                 h5_path  = os.path.join(self.subject_path, self.zones[zone], f"{self.zones[zone]}.h5")
                 mp4_path = os.path.join(self.subject_path, self.zones[zone], f"{self.zones[zone]}.mp4")
+                avi_path = os.path.join(self.subject_path, self.zones[zone], f"{self.zones[zone]}.avi")
+                print(mp4_path)
+                print(os.listdir(os.path.join(self.subject_path, self.zones[zone])))
 
                 if os.path.exists(h5_path):
                     with h5py.File(h5_path, "r") as f:
@@ -111,10 +114,13 @@ class PatientClass(Dataset):
                 elif os.path.exists(mp4_path):
                     video_frames = self._load_mp4(mp4_path)  # (F, H, W)
 
+                elif os.path.exists(avi_path):
+                    video_frames = self._load_avi(avi_path)  # (F, H, W)
+
                 else:
                     print(f"[WARNING] No video file found for zone '{zone}' — skipping.")
                     continue
-                
+
                 image_label_dict['videos'].append(video_frames)
                 image_label_dict['labels'].append(subject_labels[zone])
                 image_label_dict['zones'].append(zone)
@@ -149,6 +155,30 @@ class PatientClass(Dataset):
             raise ValueError(f"No frames extracted from: {mp4_path}")
 
         return np.stack(frames, axis=0)  # (F, H, W)
+    
+    def _load_avi(self, path: str) -> np.ndarray:
+        """
+        Load an .avi video and return frames as a numpy array (F, H, W).
+        Converts to grayscale to match the .h5 / .mp4 pipeline.
+        """
+        cap = cv2.VideoCapture(path)
+        if not cap.isOpened():
+            raise IOError(f"Cannot open AVI file: {path}")
+
+        frames = []
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                break
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            frames.append(gray)
+
+        cap.release()
+
+        if not frames:
+            raise ValueError(f"No frames read from AVI file: {path}")
+
+        return np.array(frames)  # (F, H, W)
 
 def main(args):
     """
