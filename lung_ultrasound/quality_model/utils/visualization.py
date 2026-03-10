@@ -7,7 +7,7 @@ import cv2
 import torch
 import matplotlib.pyplot as plt
 import matplotlib
-matplotlib.use('Agg')  # backend non-interattivo per salvare figure
+# matplotlib.use('Agg')  # backend non-interattivo per salvare figure
 from PIL import Image
 import io
 
@@ -159,3 +159,63 @@ def plot_centroids_over_time(frames_dict, fps=1, save_path=None, filename=None):
         full_path = os.path.join(save_path, fname)
         fig.savefig(full_path, dpi=150, bbox_inches="tight")
     return fig
+
+def visualize_image_mask(image, label, num, save_path=None):
+    """
+    Plot image | image + overlay (pleura + ribs).
+    
+    Args:
+        image:      torch.Tensor C x H x W or numpy H x W x C
+        label:      torch.Tensor or numpy H x W, values 0/1/2
+        idx:        index label for the plot title
+        save_path:  optional folder where to save the figure
+    """
+    # Converti immagine
+    if hasattr(image, 'permute'):
+        image = image.permute(1, 2, 0).numpy()
+
+    if image.max() <= 1.0:
+        frame_uint8 = (image * 255).astype(np.uint8)
+    else:
+        frame_uint8 = image.astype(np.uint8)
+
+    if frame_uint8.shape[2] == 1:
+        frame_rgb = cv2.cvtColor(frame_uint8[:, :, 0], cv2.COLOR_GRAY2RGB)
+    else:
+        frame_rgb = frame_uint8
+
+    # Maschere
+    label_np = label.numpy() if hasattr(label, 'numpy') else np.array(label)
+    binary_mask1 = (label_np == 1)  # pleura
+    binary_mask2 = (label_np == 2)  # ribs
+
+    # Overlay
+    overlay = frame_rgb.copy()
+    overlay[binary_mask1] = [255, 80,  80 ]
+    overlay[binary_mask2] = [80,  180, 255]
+    overlay = cv2.addWeighted(frame_rgb, 0.4, overlay, 0.4, 0)
+
+    # Plot
+    from matplotlib.patches import Patch
+    fig, axes = plt.subplots(1, 2, figsize=(12, 6), num=num)
+
+    axes[0].imshow(frame_rgb, cmap='gray')
+    # axes[0].set_title(f"{num}", fontsize=13)
+    axes[0].axis('off')
+
+    axes[1].imshow(overlay)
+    # axes[1].set_title("Image + Pleura/Ribs mask", fontsize=13)
+    axes[1].axis('off')
+    axes[1].legend(handles=[
+        Patch(facecolor=[1, 0.31, 0.31], label='Pleura'),
+        Patch(facecolor=[0.31, 0.71, 1],  label="Ribs' shadow"),
+    ], loc='lower right', fontsize=13)
+
+    plt.tight_layout()
+
+    if save_path is not None:
+        # os.makedirs(save_path, exist_ok=True)
+        fig.savefig(os.path.join(save_path, f"{num}.png"), dpi=150, bbox_inches="tight")
+        plt.close()
+    else:
+        plt.show()

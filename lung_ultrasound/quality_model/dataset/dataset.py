@@ -22,6 +22,8 @@ import random
 import json
 import matplotlib.pyplot as plt
 
+from lung_ultrasound.quality_model.utils.visualization import visualize_image_mask
+
 def to_long_tensor(pic):
     """
     Convert a PIL image or NumPy array into a PyTorch LongTensor.
@@ -313,8 +315,19 @@ class LungDataset(Dataset):
         return data_dict
 
 if __name__ == '__main__':
+    import argparse
+    parser = argparse.ArgumentParser(description='Dataset for semantic segmentation')
+    parser.add_argument('--report_metrics', action='store_true', help='Report histograms intra-imges class unbalance, default=False')
+    parser.add_argument('--show_aug', action='store_true', help='Show 10 time same augmented image, default=False')
+    parser.add_argument('--save_imgs_masks', action='store_true', help='save in a separte folder images and masks , default=False')
+    args = parser.parse_args()
+
     from lung_ultrasound.quality_model.cfg import cfg 
     import matplotlib.patches as patches
+
+    ## set original size when save
+    if args.save_imgs_masks:
+        cfg.img_size = 512
 
     ## aug settings
     low_image_size = cfg.low_img_size       ## the image embedding size, 256 in SAM and MSA, 128 in SAMed and SAMUS
@@ -348,50 +361,72 @@ if __name__ == '__main__':
                           img_size = cfg.img_size,
                           fold_cv = cfg.fold_cv,
                           splitting_json = cfg.splitting,
-                          split = 'train', 
+                          split = 'test', 
                           joint_transform = transform, 
                           one_hot_mask = False)
 
     ## compute general information - size of 0 - 1 - 2
-    ratios_list = []
+    if args.report_metrics:
+        ratios_list = []
 
-    for i in range(len(dataset)):
-        data = dataset[i]
-        mask = data['label'].cpu().numpy().astype(np.int64)  # tensore -> numpy intero
+        for i in range(len(dataset)):
+            data = dataset[i]
+            mask = data['label'].cpu().numpy().astype(np.int64)  # tensore -> numpy intero
 
-        counts = np.bincount(mask.flatten(), minlength=3)  # conta pixel per classe 0,1,2
-        total_pixels = mask.size  # attenzione: attributo, non funzione
-        ratios = counts / total_pixels
-        ratios_list.append(ratios)
+            counts = np.bincount(mask.flatten(), minlength=3)  # conta pixel per classe 0,1,2
+            total_pixels = mask.size  # attenzione: attributo, non funzione
+            ratios = counts / total_pixels
+            ratios_list.append(ratios)
 
-    ratios_array = np.array(ratios_list)
+        ratios_array = np.array(ratios_list)
 
-    for cls in range(3):
-        cls_ratios = ratios_array[:, cls]
-        mean_val = np.mean(cls_ratios)
-        median_val = np.median(cls_ratios)
-        print(f"Classe {cls}: media={mean_val:.3f}, mediana={median_val:.3f}")
+        for cls in range(3):
+            cls_ratios = ratios_array[:, cls]
+            mean_val = np.mean(cls_ratios)
+            median_val = np.median(cls_ratios)
+            print(f"Classe {cls}: media={mean_val:.3f}, mediana={median_val:.3f}")
 
-        plt.figure()
-        plt.hist(cls_ratios, bins=20, color=['skyblue','lightgreen','salmon'][cls])
-        plt.title(f"Istogramma ratio classe {cls}")
-        plt.xlabel("Ratio")
-        plt.ylabel("Numero di immagini")
-        plt.grid(True)
-        plt.show()
-    
-    idx = 10
-    for i in range(10):
-        data = dataset[idx]
-
-        fig, axes = plt.subplots(1, 2, figsize=(10, 5), num=i)
-        axes[0].imshow(data['image'].permute(1,2,0).numpy(), cmap='gray')
-        axes[0].set_title("Img")
-        # axes[0].axis('off')
-
-        axes[1].imshow(data['image'].permute(1,2,0).numpy(), cmap='gray')
-        axes[1].imshow(data['label'], alpha=0.2, cmap='jet')
-        axes[1].set_title("Img + mask")
+            plt.figure()
+            plt.hist(cls_ratios, bins=20, color=['skyblue','lightgreen','salmon'][cls])
+            plt.title(f"Istogramma ratio classe {cls}")
+            plt.xlabel("Ratio")
+            plt.ylabel("Numero di immagini")
+            plt.grid(True)
+            plt.show()
         
-        plt.show()
+    if args.show_aug:
+        idx = 10
+        for i in range(10):
+            data = dataset[idx]
+
+            fig, axes = plt.subplots(1, 2, figsize=(10, 5), num=i)
+            axes[0].imshow(data['image'].permute(1,2,0).numpy(), cmap='gray')
+            axes[0].set_title("Img")
+            # axes[0].axis('off')
+
+            axes[1].imshow(data['image'].permute(1,2,0).numpy(), cmap='gray')
+            axes[1].imshow(data['label'], alpha=0.2, cmap='jet')
+            axes[1].set_title("Img + mask")
+            
+            plt.show()
+
+    if args.save_imgs_masks:
+        import tqdm
+        
+        save_folder = os.path.join(cfg.main_path, 'visualize_dataset')
+        os.makedirs(save_folder, exist_ok=True)
+        for sub in set(dataset.subject_list):
+            os.makedirs(os.path.join(save_folder, sub), exist_ok=True) 
+        
+        
+        for i in tqdm.tqdm(range(len(dataset))):
+            data = dataset[i]
+            image = data['image']
+            mask = data['label']
+            subject = data['subject']
+            zone = data['zone']
+
+            save_num = f'{subject}_{zone}_{i}'
+            visualize_image_mask(image, mask, num=save_num, save_path=os.path.join(save_folder, subject))
+        
     
