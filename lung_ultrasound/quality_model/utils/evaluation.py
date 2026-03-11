@@ -11,7 +11,7 @@ import lung_ultrasound.quality_model.utils.metrics as metrics
 logging.getLogger("PIL").setLevel(logging.WARNING)
 logging.getLogger("matplotlib").setLevel(logging.WARNING)
 
-def eval_mask(valloader, model, criterion, cfg):
+def eval_mask(valloader, model, criterion, cfg, device):
     """
     Evaluate model on single images (no slice aggregation).
 
@@ -44,8 +44,8 @@ def eval_mask(valloader, model, criterion, cfg):
     sample_idx = 0          # global sample counter (replaces inner j)
 
     for batch_idx, datapack in enumerate(valloader):
-        imgs   = Variable(datapack['image'].to(dtype=torch.float32, device=cfg.device))
-        labels = Variable(datapack['label'].to(device=cfg.device))
+        imgs   = Variable(datapack['image'].to(dtype=torch.float32, device=device))
+        labels = Variable(datapack['label'].to(device=device))
 
         with torch.no_grad():
             pred = model(imgs)           # B x num_classes x H x W

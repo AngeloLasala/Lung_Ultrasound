@@ -194,7 +194,7 @@ def main(args):
         if epoch % cfg.eval_freq == 0:
             model.eval()
 
-            dices, mean_dice, _, val_losses, dice_per_class = eval_mask(valloader, model, criterion=criterion, cfg=cfg)
+            dices, mean_dice, _, val_losses, dice_per_class = eval_mask(valloader, model, criterion=criterion, cfg=cfg, device=device)
             progress_bar.set_postfix({"loss": train_losses / (batch_idx + 1), 
                                       'val loss': val_losses,
                                       'val dice': mean_dice,

@@ -43,7 +43,7 @@ def main(args):
     with open(cfg_train_path, 'r') as f:
         cfg = json.load(f)
 
-    device = torch.device(cfg['device'])
+    device = 'cpu' #torch.device(cfg['device'])
     
     ## create test dataset
     logging.info(' Creating test dataloader...')
@@ -105,7 +105,7 @@ def main(args):
  
     ## Model training 
     model.eval()
-    dices, mean_dice, _, val_losses, dice_per_class = eval_mask(testloader, model, criterion=criterion, cfg=cfg)
+    dices, mean_dice, _, val_losses, dice_per_class = eval_mask(testloader, model, criterion=criterion, cfg=cfg, device=device)
     print(f'mean dice (no background) = {mean_dice:.4f}')
     print(f'Pleura dice = {dice_per_class[1]:.4f}')
     print(f'Ribs shadow dice = {dice_per_class[2]:.4f}')

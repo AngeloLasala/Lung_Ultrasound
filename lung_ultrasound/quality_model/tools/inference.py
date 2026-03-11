@@ -55,10 +55,13 @@ class PatientClass(Dataset):
     def __init__(self,
                 subject_path: str,
                 img_size: int,
-                one_hot_mask: int = False):
+                one_hot_mask: int = False,
+                default_fps: int = 30):
 
         self.subject_path = subject_path
         self.img_size = img_size
+        self.default_fps = default_fps
+        self.fps = default_fps
         self.zones = {'z1':'z01','z2':'z02','z3':'z03','z4':'z04','z5':'z05',
                     'z6':'z06','z7':'z07','z8':'z08','z9':'z09','z10':'z10','z11':'z11','z12':'z12'}
 
@@ -141,6 +144,10 @@ class PatientClass(Dataset):
         if not cap.isOpened():
             raise IOError(f"Cannot open video file: {mp4_path}")
 
+        # extract fps from video metadata
+        self.fps = cap.get(cv2.CAP_PROP_FPS) or self.default_fps
+
+        # extrapolate frames
         frames = []
         while True:
             ret, frame = cap.read()
@@ -165,6 +172,10 @@ class PatientClass(Dataset):
         if not cap.isOpened():
             raise IOError(f"Cannot open AVI file: {path}")
 
+        # extract fps from video metadata
+        self.fps = cap.get(cv2.CAP_PROP_FPS) or self.default_fps
+
+        # extrapolate frames
         frames = []
         while True:
             ret, frame = cap.read()
@@ -195,7 +206,7 @@ def main(args):
     with open(cfg_train_path, 'r') as f:
         cfg = json.load(f)
 
-    device = cfg['device']
+    device = 'cpu'
 
     if cfg['model_name'] == 'UNet':
         model  = UNet(in_channels=cfg['im_channels'], num_classes=cfg['num_classes'], base_filters=64, bilinear=True).to(device)
@@ -271,11 +282,11 @@ def main(args):
         # Crea la GIF finale per questa zona
         gif_name = f"{args.subject}_{zone}_label_{label}.gif"
         gif_path = os.path.join(subject_folder, gif_name)
-        make_gif(all_frames_dict, output_path=gif_path, fps=10)
+        make_gif(all_frames_dict, output_path=gif_path, fps=patient_dataset.fps)
 
         # Salva il plot dei centroidi per questa zona
         plot_name = f"{args.subject}_{zone}_label_{label}_centroids.png"
-        fig = plot_centroids_over_time(all_frames_dict, fps=30, save_path=subject_folder, filename=plot_name)
+        fig = plot_centroids_over_time(all_frames_dict, fps=patient_dataset.fps, save_path=subject_folder, filename=plot_name)
         plt.close(fig)
     
 if __name__ == '__main__':
