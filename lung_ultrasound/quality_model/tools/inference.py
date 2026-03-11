@@ -206,7 +206,7 @@ def main(args):
     with open(cfg_train_path, 'r') as f:
         cfg = json.load(f)
 
-    device = 'cpu'
+    device = torch.device(cfg['device'])
 
     if cfg['model_name'] == 'UNet':
         model  = UNet(in_channels=cfg['im_channels'], num_classes=cfg['num_classes'], base_filters=64, bilinear=True).to(device)
@@ -286,7 +286,7 @@ def main(args):
 
         # Salva il plot dei centroidi per questa zona
         plot_name = f"{args.subject}_{zone}_label_{label}_centroids.png"
-        fig = plot_centroids_over_time(all_frames_dict, fps=patient_dataset.fps, save_path=subject_folder, filename=plot_name)
+        fig = plot_centroids_over_time(all_frames_dict, fps=patient_dataset.fps, img_size=cfg['img_size'], save_path=subject_folder, filename=plot_name)
         plt.close(fig)
     
 if __name__ == '__main__':

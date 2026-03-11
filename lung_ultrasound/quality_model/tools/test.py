@@ -43,7 +43,7 @@ def main(args):
     with open(cfg_train_path, 'r') as f:
         cfg = json.load(f)
 
-    device = 'cpu' #torch.device(cfg['device'])
+    device = torch.device(cfg['device'])
     
     ## create test dataset
     logging.info(' Creating test dataloader...')

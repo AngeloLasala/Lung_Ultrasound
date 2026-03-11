@@ -128,7 +128,7 @@ def main(args):
     
     trainloader = DataLoader(train_dataset, batch_size=cfg.batch_size, shuffle=True, num_workers=cfg.workers, pin_memory=True)
     valloader = DataLoader(val_dataset, batch_size=cfg.batch_size, shuffle=False, num_workers=cfg.workers, pin_memory=True)
-    logging.info(f'  splitting: {cfg.splitting}')
+    logging.info(f'  - splitting: {cfg.splitting}')
     logging.info(f'  - train dataset: {len(train_dataset)}')
     logging.info(f'  - val dataset: {len(val_dataset)}')
     logging.info('-'*25)

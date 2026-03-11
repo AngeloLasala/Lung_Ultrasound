@@ -109,13 +109,14 @@ def make_gif(all_frames_dict, output_path="inference.gif", fps=10):
     )
     print(f"GIF salvata in: {output_path}  ({n_frames} frames @ {fps} fps)")
     
-def plot_centroids_over_time(frames_dict, fps=1, save_path=None, filename=None):
+def plot_centroids_over_time(frames_dict, fps=1, img_size=None, save_path=None, filename=None):
     """
     Plot temporal evolution of pleura and ribs centroids (cx and cy separately).
     
     Args:
         frames_dict: output of visualize_inference()
         fps:         frames per second, used to convert frame index to seconds
+        img_size:    int or tuple (H, W), used to set y-axis limits. If None, limits are automatic.
         save_path:   folder where to save the plot (optional)
         filename:    filename for the saved plot, e.g. "centroids.png" (optional)
                      if save_path is given but filename is not, defaults to "centroids_plot.png"
@@ -131,6 +132,17 @@ def plot_centroids_over_time(frames_dict, fps=1, save_path=None, filename=None):
     cx_pleura, cy_pleura = split_centroids(centroids_pleura)
     cx_ribs,   cy_ribs   = split_centroids(centroids_ribs)
 
+    # derive axis limits from img_size
+    if img_size is not None:
+        if isinstance(img_size, (tuple, list)):
+            h, w = img_size[0], img_size[1]
+        else:
+            h = w = img_size  # square image
+        xlim = (0, w)
+        ylim = (0, h)
+    else:
+        xlim = ylim = None
+
     fig, axes = plt.subplots(2, 1, figsize=(12, 7), sharex=True)
 
     ax = axes[0]
@@ -140,6 +152,9 @@ def plot_centroids_over_time(frames_dict, fps=1, save_path=None, filename=None):
     ax.set_title("Centroid X position over time", fontsize=15)
     ax.legend(fontsize=16)
     ax.grid(True, linestyle="--", alpha=0.5)
+    if xlim is not None:
+        ax.set_ylim(*xlim)
+    ax.invert_yaxis()  # pixel (0,0) is top-left, plot y increases downward
 
     ax = axes[1]
     ax.plot(time_axis, cy_pleura, color="tomato",         marker="o", markersize=5, linewidth=2, label="Pleura cy")
@@ -149,10 +164,12 @@ def plot_centroids_over_time(frames_dict, fps=1, save_path=None, filename=None):
     ax.legend(fontsize=16)
     ax.grid(True, linestyle="--", alpha=0.5)
     ax.set_xlabel("Time [s]" if fps != 1 else "Frame", fontsize=13)
+    if ylim is not None:
+        ax.set_ylim(*ylim)
+    ax.invert_yaxis()  # pixel (0,0) is top-left, plot y increases downward
 
     plt.tight_layout()
 
-    # --- Save ---
     if save_path is not None:
         os.makedirs(save_path, exist_ok=True)
         fname = filename if filename is not None else "centroids_plot.png"
