@@ -289,7 +289,7 @@ class LungDataset(Dataset):
 
         image = cv2.imread(img_path, 0)
         label = np.load(label_path)
-
+        
         return  image, label, subject, zone
         
 
@@ -310,7 +310,10 @@ class LungDataset(Dataset):
                 data_dict['subjects'].append(subject)
                 data_dict['images'].append(os.path.join(images_path, i))
                 data_dict['labels'].append(os.path.join(labels_path, j))
-                data_dict['zones'].append(i.split('_')[1])
+                try:
+                    data_dict['zones'].append(i.split('_')[1])
+                except IndexError:
+                    data_dict['zones'].append('z42')  # fake subjects have no zone info
 
         return data_dict
 

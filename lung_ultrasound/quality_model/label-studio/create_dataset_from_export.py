@@ -299,7 +299,7 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='extrapolate frames from video')
     parser.add_argument('--main_path', help='Path to the main folder, i.e. ../OpenPOCUS')
-    parser.add_argument('--frames_path', help='Path to the output folder where frames will be saved, i.e. DATA_extrapolate_frames/')
+    parser.add_argument('--frames_path', help='Path to the output folder where frames will be saved, i.e. Extrapolate_frames/')
     args = parser.parse_args()
 
     main(args)
