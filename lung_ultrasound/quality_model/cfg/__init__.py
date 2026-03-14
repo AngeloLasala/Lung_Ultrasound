@@ -5,7 +5,7 @@ class cfg:
     seed = 42
 
     ## folder configuration
-    main_path = "/media/angelo/PortableSSD/Assistant_Researcher/Predict/OpenPOCUS"
+    main_path = "/leonardo_work/IscrC_FouGenAI/Angelo/Lung_ultrasound"
     dataset = "Extrapolates_frames_v2"
     results = "results"
     save_folder = "checkpoints"
@@ -35,7 +35,7 @@ class cfg:
     ## Training parameters    ##########################################################
     model_name = 'UNet'
     workers = 1                         # number of data loading workers (default: 8)
-    epochs = 5                        # number of total epochs to run (default: 400)
+    epochs = 200                        # number of total epochs to run (default: 400)
     batch_size = 8                      # batch size (default: 4)
     learning_rate = 5e-4                # iniial learning rate (default: 0.001)
     momentum = 0.9                      # momentum
