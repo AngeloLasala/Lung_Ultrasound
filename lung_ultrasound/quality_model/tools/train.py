@@ -41,6 +41,10 @@ def main(args):
     batch_size = cfg.batch_size
     learning_rate = cfg.learning_rate
     device = torch.device(cfg.device)
+
+    ## overwrite cfg.fold from parser
+    if args.fold is not None:
+        cfg.fold_cv = args.fold
     
     # main file for results
     if args.keep_log:
@@ -243,6 +247,7 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Train UNet model for semantic segmentation')
     parser.add_argument('--log', type=str, default='debug', help='Logging level')
+    parser.add_argument('--fold', type=str, default=None, help='Cross-validation fold (e.g. fold_1)')
     parser.add_argument('--keep_log', action='store_true', help='keep the loss,lr, performance during training or not, default=False')
 
     args = parser.parse_args()

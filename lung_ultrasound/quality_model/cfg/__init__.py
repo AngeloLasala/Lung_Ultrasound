@@ -5,8 +5,8 @@ class cfg:
     seed = 42
 
     ## folder configuration
-    main_path = "D:\Assistant_Researcher\Predict\OpenPOCUS"
-    dataset = "Extrapolates_frames"
+    main_path = "/media/angelo/PortableSSD/Assistant_Researcher/Predict/OpenPOCUS"
+    dataset = "Extrapolates_frames_v2"
     results = "results"
     save_folder = "checkpoints"
     tensorboard_folder = "tensorboard"
@@ -14,7 +14,7 @@ class cfg:
     ## dataset configuratios
     size = 256
     fold_cv = 'fold_1'        # cross-validation fold 
-    splitting = 'splitting_ext_plax.json'
+    splitting = 'splitting.json'
 
     ## augumentation configuration (see dataset JointTrasformation for default value)
     img_size = size
@@ -35,7 +35,7 @@ class cfg:
     ## Training parameters    ##########################################################
     model_name = 'UNet'
     workers = 1                         # number of data loading workers (default: 8)
-    epochs = 200                        # number of total epochs to run (default: 400)
+    epochs = 5                        # number of total epochs to run (default: 400)
     batch_size = 8                      # batch size (default: 4)
     learning_rate = 5e-4                # iniial learning rate (default: 0.001)
     momentum = 0.9                      # momentum
