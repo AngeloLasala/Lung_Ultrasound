@@ -15,12 +15,12 @@ DATASET_NAME="Dataset001_only_lung"    # must match folder name in nnUNet_raw
 
 SCRIPTS_PATH="/home/angelo/Documenti/Lung_Ultrasound/lung_ultrasound/quality_model/dataset" # path to the folder of create_nn
 
-ORIGINAL_DATASET_PATH="/media/angelo/PortableSSD/Assistant_Researcher/Predict/OpenPOCUS/Extrapolates_frames"
+ORIGINAL_DATASET_PATH="/media/angelo/PortableSSD/Assistant_Researcher/Predict/OpenPOCUS/Extrapolates_frames_v2"
 SPLITTING_FILE="splitting.json"
 
 NNUNET_RAW="/media/angelo/PortableSSD/Assistant_Researcher/Predict/OpenPOCUS/nnUNet_raw"
 NNUNET_PREPROCESSED="/media/angelo/PortableSSD/Assistant_Researcher/Predict/OpenPOCUS/nnUnet_preprocessed"
-NNUNET_RESULTS="/media/angelo/PortableSSD/Assistant_Researcher/Predict/OpenPOCUS/results/Extrapolates_frames/nnUnet"
+NNUNET_RESULTS="/media/angelo/PortableSSD/Assistant_Researcher/Predict/OpenPOCUS/results/Extrapolates_frames_v2/nnUnet"
 
 CONFIG="2d"
 NUM_FOLDS=5
