@@ -43,7 +43,12 @@ def main(args):
     with open(cfg_train_path, 'r') as f:
         cfg = json.load(f)
 
-    device = 'cpu' #torch.device(cfg['device'])
+    ## Override main_path if provided (e.g. when model was trained on a cluster)
+    if args.data_path is not None:
+        logging.info(f" Overriding main_path: {cfg['main_path']} -> {args.data_path}")
+        cfg['main_path'] = args.data_path
+
+    device = torch.device(cfg['device'])
     
     ## create test dataset
     logging.info(' Creating test dataloader...')
@@ -115,6 +120,7 @@ if __name__ == '__main__':
     parser.add_argument('--log', type=str, default='debug', help='Logging level')
     parser.add_argument('--model_path', type=str, help='Path to trained model')
     parser.add_argument('--saved_model', type=str, help='Select best or last')
+    parser.add_argument('--data_path', type=str, default=None, help='Override main_path from train config (e.g. when model was trained on a cluster)')
     args = parser.parse_args()
 
     main(args)
