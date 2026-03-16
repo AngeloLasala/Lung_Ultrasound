@@ -51,7 +51,7 @@ def main(args):
     
     # main file for results
     if args.keep_log:
-        logtimestr = time.strftime('%d-%m-%Y_%H-%M')  # initialize the tensorboard for record the training process
+        logtimestr = args.timestamp if args.timestamp is not None else time.strftime('%d-%m-%Y_%H-%M')
         logging.info(f' Day: {logtimestr}\n')
 
         results_path = os.path.join(cfg.main_path, cfg.results, cfg.dataset, cfg.model_name)
@@ -252,6 +252,7 @@ if __name__ == '__main__':
     parser.add_argument('--log', type=str, default='debug', help='Logging level')
     parser.add_argument('--fold', type=str, default=None, help='Cross-validation fold (e.g. fold_1)')
     parser.add_argument('--splitting', type=str, default=None, help='Splitting JSON file (e.g. splitting_v2.json)')
+    parser.add_argument('--timestamp', type=str, default=None, help='Shared timestamp for all folds (e.g. 16-03-2026_10-00)')
     parser.add_argument('--keep_log', action='store_true', help='keep the loss,lr, performance during training or not, default=False')
 
     args = parser.parse_args()

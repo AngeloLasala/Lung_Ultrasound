@@ -9,11 +9,13 @@
 #SBATCH --output=train_5cv_2.out             # standard output file
 #SBATCH --account=IscrC_FouGenAI     # account name
 
-for fold in fold_1 ; do
+TIMESTAMP=$(date +'%d-%m-%Y_%H-%M')   # shared timestamp across all folds
+
+for fold in fold_1 fold_2 fold_3 fold_4 fold_5; do
     echo "Training $fold..."
     start=$(date +%s)
  
-    python -m lung_ultrasound.quality_model.tools.train --fold "$fold" --splitting "splitting_ext_plax.json" --log info --keep_log
+    python -m lung_ultrasound.quality_model.tools.train --fold "$fold" --timestamp "$TIMESTAMP"  --splitting "splitting_ext_plax.json" --log info --keep_log
  
     end=$(date +%s)
     elapsed=$(( end - start ))
