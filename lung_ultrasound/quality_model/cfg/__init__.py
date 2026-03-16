@@ -5,8 +5,8 @@ class cfg:
     seed = 42
 
     ## folder configuration
-    main_path = "D:\Assistant_Researcher\Predict\OpenPOCUS"
-    dataset = "Extrapolates_frames"
+    main_path = "/leonardo_work/IscrC_FouGenAI/Angelo/Lung_ultrasound"
+    dataset = "Extrapolates_frames_v2"
     results = "results"
     save_folder = "checkpoints"
     tensorboard_folder = "tensorboard"
@@ -14,7 +14,11 @@ class cfg:
     ## dataset configuratios
     size = 256
     fold_cv = 'fold_1'        # cross-validation fold 
+<<<<<<< HEAD
     splitting = 'splitting_ext_liver.json'
+=======
+    splitting = 'splitting.json'
+>>>>>>> ce3bbced87ac6b4e75ccdfc22c3e75c1124886e7
 
     ## augumentation configuration (see dataset JointTrasformation for default value)
     img_size = size

@@ -364,7 +364,7 @@ if __name__ == '__main__':
                           img_size = cfg.img_size,
                           fold_cv = cfg.fold_cv,
                           splitting_json = cfg.splitting,
-                          split = 'test', 
+                          split = 'val', 
                           joint_transform = transform, 
                           one_hot_mask = False)
 
