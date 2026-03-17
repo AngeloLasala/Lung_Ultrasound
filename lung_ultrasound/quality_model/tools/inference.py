@@ -107,7 +107,7 @@ class PatientClass(Dataset):
                 h5_path  = os.path.join(self.subject_path, self.zones[zone], f"{self.zones[zone]}.h5")
                 mp4_path = os.path.join(self.subject_path, self.zones[zone], f"{self.zones[zone]}.mp4")
                 avi_path = os.path.join(self.subject_path, self.zones[zone], f"{self.zones[zone]}.avi")
-                print(mp4_path)
+                mov_path = os.path.join(self.subject_path, self.zones[zone], f"{self.zones[zone]}.mov")
                 print(os.listdir(os.path.join(self.subject_path, self.zones[zone])))
 
                 if os.path.exists(h5_path):
@@ -119,6 +119,9 @@ class PatientClass(Dataset):
 
                 elif os.path.exists(avi_path):
                     video_frames = self._load_avi(avi_path)  # (F, H, W)
+
+                elif os.path.exists(mov_path):  # (F, H, W)
+                    video_frames = self._load_mov(mov_path)
 
                 else:
                     print(f"[WARNING] No video file found for zone '{zone}' — skipping.")
@@ -188,6 +191,33 @@ class PatientClass(Dataset):
 
         if not frames:
             raise ValueError(f"No frames read from AVI file: {path}")
+
+        return np.array(frames)  # (F, H, W)
+
+    def _load_mov(self, path: str) -> np.ndarray:
+        """
+        Load a .mov video and return frames as a numpy array (F, H, W).
+        Converts to grayscale to match the .h5 / .mp4 / .avi pipeline.
+        OpenCV handles .mov natively via the same VideoCapture API.
+        """
+        cap = cv2.VideoCapture(path)
+        if not cap.isOpened():
+            raise IOError(f"Cannot open MOV file: {path}")
+
+        self.fps = cap.get(cv2.CAP_PROP_FPS) or self.default_fps
+
+        frames = []
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                break
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            frames.append(gray)
+
+        cap.release()
+
+        if not frames:
+            raise ValueError(f"No frames read from MOV file: {path}")
 
         return np.array(frames)  # (F, H, W)
 
