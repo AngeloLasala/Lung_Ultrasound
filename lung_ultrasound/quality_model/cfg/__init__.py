@@ -13,8 +13,8 @@ class cfg:
 
     ## dataset configuratios
     size = 256
-    fold_cv = 'fold_1'        # cross-validation fold 
-    splitting = 'splitting_ext_liver.json'
+    fold_cv = 'fold_inference'        # cross-validation fold 
+    splitting = 'splitting_inference.json'
 
     ## augumentation configuration (see dataset JointTrasformation for default value)
     img_size = size
