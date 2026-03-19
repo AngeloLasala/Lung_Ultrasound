@@ -24,8 +24,6 @@ from lung_ultrasound.quality_model.models.unet import UNet
 from lung_ultrasound.quality_model.models.losses import CombinedCEDiceLoss
 from lung_ultrasound.quality_model.dataset.dataset import JointTransform2D, LungDataset
 from lung_ultrasound.quality_model.utils.evaluation import eval_mask
-# from preoperativeSAM.utils.evaluation import get_eval
-
 
 def main(args):
     """

@@ -22,7 +22,8 @@ from lung_ultrasound.quality_model.cfg import cfg
 from lung_ultrasound.quality_model.models.unet import UNet
 from lung_ultrasound.quality_model.dataset.dataset import JointTransform2D, LungDataset
 from lung_ultrasound.quality_model.utils.evaluation import eval_mask
-from lung_ultrasound.quality_model.utils.visualization import visualize_inference, make_gif, plot_centroids_over_time
+from lung_ultrasound.quality_model.utils.visualization import visualize_inference, make_gif, plot_centroids_over_time, make_gif_plot
+from lung_ultrasound.quality_model.utils.prototype import get_parameters_from_mask
 
 class PatientClass(Dataset):
     """
@@ -291,6 +292,7 @@ def main(args):
             "centroid_pleura": [],
             "centroid_ribs": [],
         }
+        pleura_params = {'p1': [], 'p2': [], 'p3': [], 'p4': []}
 
         # Processa a batch di ff frames
         for start in range(0, total_frames, ff):
@@ -305,6 +307,13 @@ def main(args):
 
             batch_dict = visualize_inference(batch, pred)
 
+            # accumulo pleura
+            masks = torch.argmax(pred, dim=1).detach().cpu().numpy()
+            for mask in masks:
+                params = get_parameters_from_mask(mask)
+                for k in pleura_params:
+                    pleura_params[k].append(params['pleura'][k])
+
             # Accumula i frame nel dict globale
             for key in all_frames_dict:
                 all_frames_dict[key].extend(batch_dict[key])
@@ -313,6 +322,11 @@ def main(args):
         gif_name = f"{args.subject}_{zone}_label_{label}.gif"
         gif_path = os.path.join(subject_folder, gif_name)
         make_gif(all_frames_dict, output_path=gif_path, fps=patient_dataset.fps)
+
+        gif_name = f"{args.subject}_{zone}_label_{label}_plot.gif"
+        gif_path = os.path.join(subject_folder, gif_name)
+        make_gif_plot(all_frames_dict, output_path=gif_path, fps=patient_dataset.fps,
+                      pleura_params=pleura_params, tau=0.15)
 
         # Salva il plot dei centroidi per questa zona
         plot_name = f"{args.subject}_{zone}_label_{label}_centroids.png"

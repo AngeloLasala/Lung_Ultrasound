@@ -108,6 +108,111 @@ def make_gif(all_frames_dict, output_path="inference.gif", fps=10):
         duration=duration_ms
     )
     print(f"GIF salvata in: {output_path}  ({n_frames} frames @ {fps} fps)")
+
+def make_gif_plot(all_frames_dict, output_path="inference.gif", fps=10,
+                  pleura_params=None, tau=0.15):
+    """
+    Crea una GIF con 3 colonne: frame | pleura | ribs
+    Con 3 plot temporali aggiunti in basso.
+
+    Args:
+        all_frames_dict : output of visualize_inference()
+        output_path     : path to save the gif
+        fps             : frames per second
+        pleura_params   : dict with keys 'p1', 'p2', 'p3', 'p4' — list of values per frame
+        tau             : tolerance for GS region (default 0.1)
+    """
+    n_frames    = len(all_frames_dict["frame"])
+    duration_ms = int(1000 / fps)
+    time_axis   = np.arange(n_frames) / fps
+
+    W_frame = np.array(all_frames_dict["frame"][0]).shape[1]
+    H_frame = np.array(all_frames_dict["frame"][0]).shape[0]
+    W_total = W_frame * 3
+
+    gif_frames = []
+
+    for f in range(n_frames):
+        img_frame  = np.array(all_frames_dict["frame"][f])
+        img_pleura = np.array(all_frames_dict["frame_pleura"][f])
+        img_ribs   = np.array(all_frames_dict["frame_ribs"][f])
+        combined   = np.concatenate([img_frame, img_pleura, img_ribs], axis=1)
+
+        dpi   = 100
+        fig_w = W_total / dpi
+        fig_h = H_frame * 1.2 / dpi  # taller to fit 3 subplots
+
+        fig, axes = plt.subplots(3, 1, figsize=(fig_w, fig_h), dpi=dpi)
+        t_so_far  = time_axis[:f+1]
+
+        # ── Plot 1: p1 and p2, [-1, 1] ──────────────────────────────────────
+        ax = axes[0]
+        ax.axhline(0, color='gold', linewidth=1.0, linestyle='--', zorder=2)
+        ax.axhspan(-tau, tau, color='gold', alpha=0.15, label=f'GS (±{tau})')
+        ax.axhline(0, color='gold', linewidth=1.0, linestyle='--', zorder=2)
+        if pleura_params is not None:
+            ax.plot(t_so_far, pleura_params['p1'][:f+1], color='cyan',   linewidth=2, label='p1 lateral')
+            ax.plot(t_so_far, pleura_params['p2'][:f+1], color='tomato', linewidth=2, label='p2 vertical')
+            ax.scatter(time_axis[f], pleura_params['p1'][f], color='cyan',   s=40, zorder=5)
+            ax.scatter(time_axis[f], pleura_params['p2'][f], color='tomato', s=40, zorder=5)
+        ax.set_xlim(0, time_axis[-1])
+        ax.set_ylim(-1.1, 1.1)
+        ax.set_ylabel('p1, p2', fontsize=11)
+        # ax.legend(loc='lower left', fontsize=9, ncol=2)
+        ax.grid(True, alpha=0.3)
+        ax.tick_params(labelsize=9)
+
+        # ── Plot 2: p3, [0, 1] ───────────────────────────────────────────────
+        ax = axes[1]
+        ax.axhspan(1.0 - tau, 1.0, color='gold', alpha=0.2, label=f'GS (±{tau})')
+        ax.axhline(1.0, color='gold', linewidth=1.0, linestyle='--', zorder=2)
+        if pleura_params is not None:
+            ax.plot(t_so_far, pleura_params['p3'][:f+1], color='limegreen', linewidth=2, label='p3 compactness')
+            ax.scatter(time_axis[f], pleura_params['p3'][f], color='limegreen', s=40, zorder=5)
+        ax.set_xlim(0, time_axis[-1])
+        ax.set_ylim(-0.05, 1.1)
+        ax.set_ylabel('p3', fontsize=11)
+        # ax.legend(loc='lower left', fontsize=9, ncol=2)
+        ax.grid(True, alpha=0.3)
+        ax.tick_params(labelsize=9)
+
+        # ── Plot 3: p4, [-1, 1] ──────────────────────────────────────────────
+        ax = axes[2]
+        ax.axhspan(-tau, tau, color='gold', alpha=0.2, label=f'GS (±{tau})')
+        ax.axhline(0, color='gold', linewidth=1.0, linestyle='--', zorder=2)
+        if pleura_params is not None:
+            ax.plot(t_so_far, pleura_params['p4'][:f+1], color='violet', linewidth=2, label='p4 skewness')
+            ax.scatter(time_axis[f], pleura_params['p4'][f], color='violet', s=40, zorder=5)
+        ax.set_xlim(0, time_axis[-1])
+        ax.set_ylim(-1.1, 1.1)
+        ax.set_ylabel('p4', fontsize=11)
+        ax.set_xlabel('Time [s]' if fps != 1 else 'Frame', fontsize=11)
+        # ax.legend(loc='lower left', fontsize=9, ncol=2)
+        ax.grid(True, alpha=0.3)
+        ax.tick_params(labelsize=9)
+
+        plt.tight_layout(pad=0.3)
+
+        # ── Render to numpy ──────────────────────────────────────────────────
+        buf = io.BytesIO()
+        fig.savefig(buf, format='png', dpi=dpi, bbox_inches='tight')
+        plt.close(fig)
+        buf.seek(0)
+        plot_img = np.array(Image.open(buf).convert('RGB'))
+        buf.close()
+
+        plot_img   = cv2.resize(plot_img, (W_total, plot_img.shape[0]))
+        final_frame = np.concatenate([combined, plot_img], axis=0)
+        gif_frames.append(Image.fromarray(final_frame))
+
+    gif_frames[0].save(
+        output_path,
+        save_all=True,
+        append_images=gif_frames[1:],
+        loop=0,
+        duration=duration_ms
+    )
+    print(f"GIF salvata in: {output_path}  ({n_frames} frames @ {fps} fps)")
     
 def plot_centroids_over_time(frames_dict, fps=1, img_size=None, save_path=None, filename=None):
     """

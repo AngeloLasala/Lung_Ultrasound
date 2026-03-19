@@ -5,7 +5,7 @@ class cfg:
     seed = 42
 
     ## folder configuration
-    main_path = "/leonardo_work/IscrC_FouGenAI/Angelo/Lung_ultrasound"
+    main_path = "D:\Assistant_Researcher\Predict\OpenPOCUS" #"/leonardo_work/IscrC_FouGenAI/Angelo/Lung_ultrasound"
     dataset = "Extrapolates_frames_v2"
     results = "results"
     save_folder = "checkpoints"
