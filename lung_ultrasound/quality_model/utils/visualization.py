@@ -110,17 +110,18 @@ def make_gif(all_frames_dict, output_path="inference.gif", fps=10):
     print(f"GIF salvata in: {output_path}  ({n_frames} frames @ {fps} fps)")
 
 def make_gif_plot(all_frames_dict, output_path="inference.gif", fps=10,
-                  pleura_params=None, tau=0.15):
+                  pleura_params=None, ribs_params=None, tau=0.15):
     """
     Crea una GIF con 3 colonne: frame | pleura | ribs
-    Con 3 plot temporali aggiunti in basso.
+    Con 6 plot temporali aggiunti in basso (3 pleura + 3 ribs).
 
     Args:
         all_frames_dict : output of visualize_inference()
         output_path     : path to save the gif
         fps             : frames per second
-        pleura_params   : dict with keys 'p1', 'p2', 'p3', 'p4' — list of values per frame
-        tau             : tolerance for GS region (default 0.1)
+        pleura_params   : dict with keys 'p1', 'p2', 'p3', 'p4'
+        ribs_params     : dict with keys 'r1', 'r2', 'r3'
+        tau             : tolerance for GS region (default 0.15)
     """
     n_frames    = len(all_frames_dict["frame"])
     duration_ms = int(1000 / fps)
@@ -140,15 +141,14 @@ def make_gif_plot(all_frames_dict, output_path="inference.gif", fps=10,
 
         dpi   = 100
         fig_w = W_total / dpi
-        fig_h = H_frame * 1.2 / dpi  # taller to fit 3 subplots
+        fig_h = H_frame * 2.4 / dpi  # taller to fit 6 subplots
 
-        fig, axes = plt.subplots(3, 1, figsize=(fig_w, fig_h), dpi=dpi)
+        fig, axes = plt.subplots(6, 1, figsize=(fig_w, fig_h), dpi=dpi)
         t_so_far  = time_axis[:f+1]
 
         # ── Plot 1: p1 and p2, [-1, 1] ──────────────────────────────────────
         ax = axes[0]
-        ax.axhline(0, color='gold', linewidth=1.0, linestyle='--', zorder=2)
-        ax.axhspan(-tau, tau, color='gold', alpha=0.15, label=f'GS (±{tau})')
+        ax.axhspan(-tau, tau, color='gold', alpha=0.15)
         ax.axhline(0, color='gold', linewidth=1.0, linestyle='--', zorder=2)
         if pleura_params is not None:
             ax.plot(t_so_far, pleura_params['p1'][:f+1], color='cyan',   linewidth=2, label='p1 lateral')
@@ -157,39 +157,78 @@ def make_gif_plot(all_frames_dict, output_path="inference.gif", fps=10,
             ax.scatter(time_axis[f], pleura_params['p2'][f], color='tomato', s=40, zorder=5)
         ax.set_xlim(0, time_axis[-1])
         ax.set_ylim(-1.1, 1.1)
-        ax.set_ylabel('p1, p2', fontsize=11)
-        # ax.legend(loc='lower left', fontsize=9, ncol=2)
+        ax.set_ylabel('p1,p2', fontsize=9)
+        # ax.legend(loc='upper right', fontsize=7, ncol=2)
         ax.grid(True, alpha=0.3)
-        ax.tick_params(labelsize=9)
+        ax.tick_params(labelsize=8)
 
         # ── Plot 2: p3, [0, 1] ───────────────────────────────────────────────
         ax = axes[1]
-        ax.axhspan(1.0 - tau, 1.0, color='gold', alpha=0.2, label=f'GS (±{tau})')
+        ax.axhspan(1.0 - tau, 1.0, color='gold', alpha=0.2)
         ax.axhline(1.0, color='gold', linewidth=1.0, linestyle='--', zorder=2)
         if pleura_params is not None:
-            ax.plot(t_so_far, pleura_params['p3'][:f+1], color='limegreen', linewidth=2, label='p3 compactness')
+            ax.plot(t_so_far, pleura_params['p3'][:f+1], color='limegreen', linewidth=2, label='p3 compact')
             ax.scatter(time_axis[f], pleura_params['p3'][f], color='limegreen', s=40, zorder=5)
         ax.set_xlim(0, time_axis[-1])
         ax.set_ylim(-0.05, 1.1)
-        ax.set_ylabel('p3', fontsize=11)
-        # ax.legend(loc='lower left', fontsize=9, ncol=2)
+        ax.set_ylabel('p3', fontsize=9)
+        # ax.legend(loc='upper right', fontsize=7)
         ax.grid(True, alpha=0.3)
-        ax.tick_params(labelsize=9)
+        ax.tick_params(labelsize=8)
 
         # ── Plot 3: p4, [-1, 1] ──────────────────────────────────────────────
         ax = axes[2]
-        ax.axhspan(-tau, tau, color='gold', alpha=0.2, label=f'GS (±{tau})')
+        ax.axhspan(-tau, tau, color='gold', alpha=0.2)
         ax.axhline(0, color='gold', linewidth=1.0, linestyle='--', zorder=2)
         if pleura_params is not None:
-            ax.plot(t_so_far, pleura_params['p4'][:f+1], color='violet', linewidth=2, label='p4 skewness')
+            ax.plot(t_so_far, pleura_params['p4'][:f+1], color='violet', linewidth=2, label='p4 asymmetry')
             ax.scatter(time_axis[f], pleura_params['p4'][f], color='violet', s=40, zorder=5)
         ax.set_xlim(0, time_axis[-1])
         ax.set_ylim(-1.1, 1.1)
-        ax.set_ylabel('p4', fontsize=11)
-        ax.set_xlabel('Time [s]' if fps != 1 else 'Frame', fontsize=11)
-        # ax.legend(loc='lower left', fontsize=9, ncol=2)
+        ax.set_ylabel('p4', fontsize=9)
+        # ax.legend(loc='upper right', fontsize=7)
         ax.grid(True, alpha=0.3)
-        ax.tick_params(labelsize=9)
+        ax.tick_params(labelsize=8)
+
+         # ── Plot 4: r1, [-1, 1] ──────────────────────────────────────────────
+        ax = axes[3]
+        ax.axhspan(-tau, tau, color='gold', alpha=0.15)
+        ax.axhline(0, color='gold', linewidth=1.0, linestyle='--', zorder=2)
+        if ribs_params is not None:
+            ax.plot(t_so_far, ribs_params['r1'][:f+1], color='cyan', linewidth=2, label='r1 lateral')
+            ax.scatter(time_axis[f], ribs_params['r1'][f], color='cyan', s=40, zorder=5)
+        ax.set_xlim(0, time_axis[-1])
+        ax.set_ylim(-1.1, 1.1)
+        ax.set_ylabel('r1', fontsize=9)
+        ax.grid(True, alpha=0.3)
+        ax.tick_params(labelsize=8)
+
+        # ── Plot 5: r3, [0, 1] ───────────────────────────────────────────────
+        ax = axes[4]
+        ax.axhspan(1.0 - tau, 1.0, color='gold', alpha=0.2)
+        ax.axhline(1.0, color='gold', linewidth=1.0, linestyle='--', zorder=2)
+        if ribs_params is not None:
+            ax.plot(t_so_far, ribs_params['r3'][:f+1], color='limegreen', linewidth=2, label='r3 entropy')
+            ax.scatter(time_axis[f], ribs_params['r3'][f], color='limegreen', s=40, zorder=5)
+        ax.set_xlim(0, time_axis[-1])
+        ax.set_ylim(-0.05, 1.1)
+        ax.set_ylabel('r3', fontsize=9)
+        ax.grid(True, alpha=0.3)
+        ax.tick_params(labelsize=8)
+
+        # ── Plot 6: r2, [-1, 1] ──────────────────────────────────────────────
+        ax = axes[5]
+        ax.axhspan(-tau, tau, color='gold', alpha=0.15)
+        ax.axhline(0, color='gold', linewidth=1.0, linestyle='--', zorder=2)
+        if ribs_params is not None:
+            ax.plot(t_so_far, ribs_params['r2'][:f+1], color='tomato', linewidth=2, label='r2 asymmetry')
+            ax.scatter(time_axis[f], ribs_params['r2'][f], color='tomato', s=40, zorder=5)
+        ax.set_xlim(0, time_axis[-1])
+        ax.set_ylim(-1.1, 1.1)
+        ax.set_ylabel('r2', fontsize=9)
+        ax.set_xlabel('Time [s]' if fps != 1 else 'Frame', fontsize=9)
+        ax.grid(True, alpha=0.3)
+        ax.tick_params(labelsize=8)
 
         plt.tight_layout(pad=0.3)
 
@@ -201,7 +240,7 @@ def make_gif_plot(all_frames_dict, output_path="inference.gif", fps=10,
         plot_img = np.array(Image.open(buf).convert('RGB'))
         buf.close()
 
-        plot_img   = cv2.resize(plot_img, (W_total, plot_img.shape[0]))
+        plot_img    = cv2.resize(plot_img, (W_total, plot_img.shape[0]))
         final_frame = np.concatenate([combined, plot_img], axis=0)
         gif_frames.append(Image.fromarray(final_frame))
 

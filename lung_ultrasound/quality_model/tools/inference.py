@@ -292,7 +292,9 @@ def main(args):
             "centroid_pleura": [],
             "centroid_ribs": [],
         }
+
         pleura_params = {'p1': [], 'p2': [], 'p3': [], 'p4': []}
+        ribs_params   = {'r1': [], 'r2': [], 'r3': []}
 
         # Processa a batch di ff frames
         for start in range(0, total_frames, ff):
@@ -313,6 +315,8 @@ def main(args):
                 params = get_parameters_from_mask(mask)
                 for k in pleura_params:
                     pleura_params[k].append(params['pleura'][k])
+                for k in ribs_params:
+                    ribs_params[k].append(params['ribs'][k])
 
             # Accumula i frame nel dict globale
             for key in all_frames_dict:
@@ -326,7 +330,7 @@ def main(args):
         gif_name = f"{args.subject}_{zone}_label_{label}_plot.gif"
         gif_path = os.path.join(subject_folder, gif_name)
         make_gif_plot(all_frames_dict, output_path=gif_path, fps=patient_dataset.fps,
-                      pleura_params=pleura_params, tau=0.15)
+                      pleura_params=pleura_params, ribs_params=ribs_params, tau=0.20)
 
         # Salva il plot dei centroidi per questa zona
         plot_name = f"{args.subject}_{zone}_label_{label}_centroids.png"

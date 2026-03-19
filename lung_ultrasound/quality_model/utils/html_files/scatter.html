@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<title>Lung Ultrasound — scatter interattivo</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.27.0/plotly.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: sans-serif; background: #f4f4f2; padding: 24px; color: #222; }
+  h2   { font-size: 18px; font-weight: 500; margin-bottom: 4px; }
+  .sub { font-size: 13px; color: #777; margin-bottom: 16px; }
+
+  #tab-selector { display: flex; gap: 0; margin-bottom: 18px; border-bottom: 2px solid #ddd; }
+  .tab-btn {
+    padding: 8px 22px; font-size: 14px; cursor: pointer;
+    border: none; background: none; color: #888;
+    border-bottom: 2px solid transparent; margin-bottom: -2px;
+  }
+  .tab-btn.active { color: #185FA5; border-bottom-color: #185FA5; font-weight: 500; }
+
+  #pair-selector { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+  .pair-btn {
+    padding: 5px 14px; font-size: 13px;
+    border: 0.5px solid #bbb; border-radius: 6px;
+    background: #fff; cursor: pointer;
+  }
+  .pair-btn.active { background: #185FA5; color: #fff; border-color: #185FA5; }
+
+  #stats { font-size: 12px; color: #999; margin-bottom: 14px; }
+
+  #layout { display: grid; grid-template-columns: 1fr 420px; gap: 24px; align-items: start; }
+
+  #side-panel {
+    background: #fff; border: 0.5px solid #ddd;
+    border-radius: 10px; padding: 18px;
+    position: sticky; top: 24px;
+  }
+  .panel-title { font-size: 13px; font-weight: 500; margin-bottom: 12px; color: #444; }
+  #tip-img {
+    width: 100%; aspect-ratio: 1; object-fit: contain;
+    border-radius: 8px; background: #111; display: block; margin-bottom: 14px;
+  }
+  .subject-row { font-weight: 500; font-size: 14px; margin-bottom: 10px; color: #222; }
+  .subject-row span { color: #999; font-weight: 400; font-size: 13px; }
+  .gs-badge {
+    display: inline-block; padding: 2px 8px; border-radius: 4px;
+    font-size: 11px; font-weight: 600; margin-left: 8px; vertical-align: middle;
+  }
+  .gs-badge.yes { background: #FFF3CD; color: #B8860B; border: 1px solid #EF9F27; }
+  .gs-badge.no  { background: #f0f0f0; color: #999;    border: 1px solid #ddd; }
+  .param-section-label {
+    font-size: 11px; font-weight: 500; color: #aaa;
+    text-transform: uppercase; letter-spacing: 0.05em;
+    margin: 10px 0 4px;
+  }
+  .param-row {
+    display: flex; justify-content: space-between;
+    padding: 5px 0; border-bottom: 0.5px solid #f0f0f0;
+  }
+  .param-row:last-child { border-bottom: none; }
+  .param-label { color: #888; font-size: 13px; }
+  .param-val   { font-weight: 500; color: #333; font-size: 13px; font-variant-numeric: tabular-nums; }
+  #tip-placeholder { font-size: 13px; color: #bbb; text-align: center; padding: 100px 0; }
+
+  #loading {
+    position: fixed; inset: 0; background: rgba(244,244,242,0.92);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px; color: #555; z-index: 100;
+  }
+</style>
+</head>
+<body>
+
+<div id="loading">Caricamento dati…</div>
+
+<h2>Lung Ultrasound — distribuzione parametri</h2>
+<p class="sub">Passa il cursore su un punto per vedere l'immagine. Scroll per zoomare, doppio click per resettare. <span style="color:#EF9F27;font-weight:600;">★ Oro</span> = Gold Standard.</p>
+
+<div id="tab-selector">
+  <button class="tab-btn active" data-tab="pleura">Pleura</button>
+  <button class="tab-btn"        data-tab="ribs">Ribs</button>
+  <button class="tab-btn"        data-tab="cross">Cross</button>
+</div>
+
+<div id="pair-selector"></div>
+<div id="stats"></div>
+
+<div id="layout">
+  <div id="scatter"></div>
+  <div id="side-panel">
+    <div class="panel-title">Dettaglio campione</div>
+    <div id="tip-content">
+      <p id="tip-placeholder">Passa il cursore su un punto</p>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── configurazione tab ────────────────────────────────────────────────────────
+const TABS = {
+  pleura: {
+    pairs: [['p1','p2'], ['p3','p4'], ['p1','p3']],
+    gs:    { p1: 0.0, p2: 0.0, p3: 1.0, p4: 0.0 },
+    tau:   { p1: 0.15, p2: 0.15, p3: 0.15, p4: 0.15 },
+    range: { p1:[-1.05,1.05], p2:[-1.05,1.05], p3:[-0.05,1.05], p4:[-1.05,1.05] },
+    color: '#D85A30', colorLine: '#993C1D',
+    src:   { p1:'pleura', p2:'pleura', p3:'pleura', p4:'pleura' },
+    paramKeys: ['p1','p2','p3','p4'],
+  },
+  ribs: {
+    pairs: [['r1','r2'], ['r1','r3'], ['r2','r3']],
+    gs:    { r1: 0.0, r2: 0.0, r3: 1.0 },
+    tau:   { r1: 0.15, r2: 0.15, r3: 0.15 },
+    range: { r1:[-1.05,1.05], r2:[-1.05,1.05], r3:[-0.05,1.05] },
+    color: '#378ADD', colorLine: '#185FA5',
+    src:   { r1:'ribs', r2:'ribs', r3:'ribs' },
+    paramKeys: ['r1','r2','r3'],
+  },
+  cross: {
+    pairs: [['p1','r1'], ['p3','r3'], ['p4','r2']],
+    gs:    { p1: 0.0, r1: 0.0, p3: 1.0, r3: 1.0, p4: 0.0, r2: 0.0 },
+    tau:   { p1: 0.15, r1: 0.15, p3: 0.15, r3: 0.15, p4: 0.15, r2: 0.15 },
+    range: {
+      p1:[-1.05,1.05], r1:[-1.05,1.05],
+      p3:[-0.05,1.05], r3:[-0.05,1.05],
+      p4:[-1.05,1.05], r2:[-1.05,1.05],
+    },
+    color: '#1D9E75', colorLine: '#0F6E56',
+    src:   { p1:'pleura', r1:'ribs', p3:'pleura', r3:'ribs', p4:'pleura', r2:'ribs' },
+    paramKeys: ['p1','p2','p3','p4','r1','r2','r3'],
+  },
+};
+
+function fmt(v) {
+  return (v === null || v === undefined) ? 'N/A' : Number(v).toFixed(3);
+}
+
+function getVal(sample, tabKey, param) {
+  const src = TABS[tabKey].src[param];
+  return sample[src] ? sample[src][param] : null;
+}
+
+// ── helper: normalizza is_gs in booleano ──────────────────────────────────────
+function isGS(sample) {
+  // gestisce: 1, "1", true, "true" — qualsiasi valore truthy non-zero
+  const v = sample.is_gs;
+  return v == 1 || v === true || v === 'true';
+}
+
+// ── stato ─────────────────────────────────────────────────────────────────────
+let SAMPLES    = [];
+let currentTab  = 'pleura';
+let currentPair = ['p1','p2'];
+
+// ── pair buttons ──────────────────────────────────────────────────────────────
+function renderPairButtons() {
+  const cfg = TABS[currentTab];
+  const container = document.getElementById('pair-selector');
+  container.innerHTML = cfg.pairs.map(([x,y], i) =>
+    `<button class="pair-btn${i===0?' active':''}" data-x="${x}" data-y="${y}">${x} vs ${y}</button>`
+  ).join('');
+  container.querySelectorAll('.pair-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      container.querySelectorAll('.pair-btn').forEach(b => b.classList.remove('active'));
+      this.classList.add('active');
+      currentPair = [this.dataset.x, this.dataset.y];
+      render();
+    });
+  });
+  currentPair = cfg.pairs[0];
+}
+
+// ── tracce ────────────────────────────────────────────────────────────────────
+function buildTraces(samples, tabKey, px, py) {
+  const cfg   = TABS[tabKey];
+  const valid = samples.filter(s => getVal(s,tabKey,px) !== null && getVal(s,tabKey,py) !== null);
+
+  const gsCount    = valid.filter(s => isGS(s)).length;
+  const nonGsCount = valid.length - gsCount;
+  document.getElementById('stats').textContent =
+    `${valid.length} campioni validi  —  ★ GS: ${gsCount}  |  non-GS: ${nonGsCount}`;
+
+  // ── non-GS scatter ───────────────────────────────────────────────────────
+  const nonGs = valid.filter(s => !isGS(s));
+  const scatterNonGs = {
+    x: nonGs.map(s => getVal(s,tabKey,px)),
+    y: nonGs.map(s => getVal(s,tabKey,py)),
+    mode: 'markers', type: 'scatter', name: 'Non-GS',
+    hovertemplate: '%{text}<extra></extra>',
+    text: nonGs.map(s => {
+      const pl = s.pleura, ri = s.ribs;
+      return `<b>${s.subject}</b> / ${s.zone}  [non-GS]<br>` +
+             `p1=${fmt(pl.p1)}  p2=${fmt(pl.p2)}<br>` +
+             `p3=${fmt(pl.p3)}  p4=${fmt(pl.p4)}<br>` +
+             `r1=${fmt(ri.r1)}  r2=${fmt(ri.r2)}  r3=${fmt(ri.r3)}`;
+    }),
+    customdata: nonGs.map(s => samples.indexOf(s)),
+    marker: {
+      color: '#aaaaaa', size: 7, opacity: 0.4,
+      line: { color: '#888888', width: 0.5 }
+    },
+  };
+
+  // ── GS scatter ───────────────────────────────────────────────────────────
+  const gs = valid.filter(s => isGS(s));
+  const scatterGs = {
+    x: gs.map(s => getVal(s,tabKey,px)),
+    y: gs.map(s => getVal(s,tabKey,py)),
+    mode: 'markers', type: 'scatter', name: '★ Gold Standard',
+    hovertemplate: '%{text}<extra></extra>',
+    text: gs.map(s => {
+      const pl = s.pleura, ri = s.ribs;
+      return `<b>${s.subject}</b> / ${s.zone}  [★ GS]<br>` +
+             `p1=${fmt(pl.p1)}  p2=${fmt(pl.p2)}<br>` +
+             `p3=${fmt(pl.p3)}  p4=${fmt(pl.p4)}<br>` +
+             `r1=${fmt(ri.r1)}  r2=${fmt(ri.r2)}  r3=${fmt(ri.r3)}`;
+    }),
+    customdata: gs.map(s => samples.indexOf(s)),
+    marker: {
+      color: '#EF9F27', size: 10, opacity: 0.85,
+      line: { color: '#BA7517', width: 1 }
+    },
+  };
+
+  // ── GS region rect ───────────────────────────────────────────────────────
+  const gx = cfg.gs[px], gy = cfg.gs[py];
+  const tx = cfg.tau[px], ty = cfg.tau[py];
+
+  const gsRect = {
+    x: [gx-tx, gx+tx, gx+tx, gx-tx, gx-tx],
+    y: [gy-ty, gy-ty, gy+ty, gy+ty, gy-ty],
+    mode: 'lines', type: 'scatter', name: `GS region (±${tx})`,
+    fill: 'toself', fillcolor: 'rgba(239,159,39,0.12)', hoverinfo: 'skip',
+    line: { color: 'rgba(239,159,39,0.6)', width: 1.5, dash: 'dash' },
+  };
+
+  const gsPoint = {
+    x: [gx], y: [gy], mode: 'markers', type: 'scatter', name: 'GS target',
+    hovertemplate: `GS target<br>${px}=${gx}, ${py}=${gy}<extra></extra>`,
+    marker: {
+      symbol: 'star', size: 20, color: '#EF9F27',
+      line: { color: '#222', width: 1 }
+    },
+  };
+
+  return [gsRect, scatterNonGs, scatterGs, gsPoint];
+}
+
+function buildLayout(tabKey, px, py) {
+  const cfg = TABS[tabKey];
+  return {
+    xaxis: {
+      title: { text: px, font: { size: 13 } },
+      range: cfg.range[px], fixedrange: false,
+      zeroline: true, zerolinecolor: '#ccc', gridcolor: '#eee', constrain: 'domain',
+    },
+    yaxis: {
+      title: { text: py, font: { size: 13 } },
+      range: cfg.range[py], fixedrange: false,
+      zeroline: true, zerolinecolor: '#ccc', gridcolor: '#eee',
+      scaleanchor: 'x', scaleratio: 1, constrain: 'domain',
+    },
+    legend: { font: { size: 11 } },
+    margin: { l: 55, r: 20, t: 20, b: 55 },
+    plot_bgcolor: '#fff', paper_bgcolor: 'transparent',
+    hovermode: 'closest', dragmode: 'zoom',
+  };
+}
+
+const plotConfig = {
+  responsive: true, displayModeBar: false,
+  scrollZoom: true, doubleClick: 'reset',
+};
+
+// ── hover ─────────────────────────────────────────────────────────────────────
+function attachHover() {
+  const el = document.getElementById('scatter');
+
+  el.on('plotly_hover', evt => {
+    const pt = evt.points[0];
+    if (!['★ Gold Standard', 'Non-GS'].includes(pt.data.name)) return;
+    const s  = SAMPLES[pt.customdata];
+    const pl = s.pleura, ri = s.ribs;
+    const gsHtml = isGS(s)
+      ? '<span class="gs-badge yes">★ Gold Standard</span>'
+      : '<span class="gs-badge no">non-GS</span>';
+
+    document.getElementById('tip-content').innerHTML = `
+      <img id="tip-img" src="${s.img_b64}" alt="${s.subject}">
+      <div id="tip-meta">
+        <div class="subject-row">${s.subject} <span>/ ${s.zone}</span>${gsHtml}</div>
+        <div class="param-section-label">Pleura</div>
+        <div class="param-row"><span class="param-label">p1</span><span class="param-val">${fmt(pl.p1)}</span></div>
+        <div class="param-row"><span class="param-label">p2</span><span class="param-val">${fmt(pl.p2)}</span></div>
+        <div class="param-row"><span class="param-label">p3</span><span class="param-val">${fmt(pl.p3)}</span></div>
+        <div class="param-row"><span class="param-label">p4</span><span class="param-val">${fmt(pl.p4)}</span></div>
+        <div class="param-section-label">Ribs</div>
+        <div class="param-row"><span class="param-label">r1</span><span class="param-val">${fmt(ri.r1)}</span></div>
+        <div class="param-row"><span class="param-label">r2</span><span class="param-val">${fmt(ri.r2)}</span></div>
+        <div class="param-row"><span class="param-label">r3</span><span class="param-val">${fmt(ri.r3)}</span></div>
+      </div>`;
+  });
+
+  el.on('plotly_unhover', () => {
+    document.getElementById('tip-content').innerHTML =
+      '<p id="tip-placeholder">Passa il cursore su un punto</p>';
+  });
+}
+
+// ── render ────────────────────────────────────────────────────────────────────
+function render() {
+  const [px, py] = currentPair;
+  Plotly.react('scatter',
+    buildTraces(SAMPLES, currentTab, px, py),
+    buildLayout(currentTab, px, py),
+    plotConfig
+  );
+}
+
+// ── tab buttons ───────────────────────────────────────────────────────────────
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', function() {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    this.classList.add('active');
+    currentTab = this.dataset.tab;
+    renderPairButtons();
+    render();
+    document.getElementById('tip-content').innerHTML =
+      '<p id="tip-placeholder">Passa il cursore su un punto</p>';
+  });
+});
+
+// ── caricamento ───────────────────────────────────────────────────────────────
+fetch('ultrasound_data.json')
+  .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+  .then(data => {
+    SAMPLES = data;
+
+    // debug: mostra in console i valori is_gs trovati
+    const gsVals = [...new Set(data.map(s => s.is_gs))];
+    console.log('Valori is_gs trovati nel JSON:', gsVals);
+    console.log('Campioni GS:', data.filter(s => isGS(s)).length, '/', data.length);
+
+    document.getElementById('loading').style.display = 'none';
+    renderPairButtons();
+    render();
+    attachHover();
+  })
+  .catch(err => {
+    document.getElementById('loading').textContent =
+      `Errore nel caricamento di ultrasound_data.json: ${err.message}`;
+  });
+</script>
+</body>
+</html>
